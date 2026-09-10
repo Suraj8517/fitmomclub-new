@@ -23,13 +23,18 @@ import femaleExtremeObese from '../assets/form/female/female-extreme-obese.png'
  * Drop this into a React + Tailwind project. No extra dependencies required.
  * Light theme with custom +/- stepper buttons on every numeric field (native
  * spinner arrows are hidden in favor of these).
+ *
+ * Sizing: the card is capped at max-h-[92vh] with internal scrolling, so it
+ * always fits inside the viewport instead of pushing the page down. Width is
+ * a wider max-w-lg card on larger screens; on phones it still goes edge to
+ * edge.
  */
 
 // ---------------------------------------------------------------------------
 // Config / data
 // ---------------------------------------------------------------------------
 
-const STEPS = ["age", "gender", "weight", "height", "result"];
+const STEPS = ["age", "gender", "contact", "weight", "height", "result"];
 
 const GENDER_IMAGES = { male, female };
 
@@ -115,13 +120,36 @@ function ProgressBar({ stepIndex, total }) {
   );
 }
 
+function TextField({ value, onChange, type = "text", placeholder, autoFocus, inputMode }) {
+  return (
+    <label className="block">
+      <div
+        className="flex items-center gap-2 rounded-2xl border border-stone-200 bg-white
+                   px-5 py-3.5 shadow-sm transition focus-within:border-teal-500
+                   focus-within:ring-2 focus-within:ring-teal-100"
+      >
+        <input
+          type={type}
+          inputMode={inputMode}
+          autoFocus={autoFocus}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full min-w-0 bg-transparent text-lg font-semibold tracking-tight text-stone-900
+                     outline-none placeholder:font-normal placeholder:text-stone-300"
+        />
+      </div>
+    </label>
+  );
+}
+
 function NumberField({ value, onChange, unit, placeholder, autoFocus, min, max, step = 1 }) {
   return (
     <label className="block">
       <div
         className="flex items-baseline gap-2 rounded-2xl border border-stone-200 bg-white
                    px-5 py-4 shadow-sm transition focus-within:border-teal-500
-                   focus-within:ring-2 focus-within:ring-teal-100 sm:py-5"
+                   focus-within:ring-2 focus-within:ring-teal-100"
       >
         <input
           type="text"
@@ -135,7 +163,7 @@ function NumberField({ value, onChange, unit, placeholder, autoFocus, min, max, 
             onChange(digits);
           }}
           className="w-full min-w-0 bg-transparent text-3xl font-extrabold tracking-tight text-stone-900
-                     outline-none placeholder:text-stone-300 sm:text-4xl"
+                     outline-none placeholder:text-stone-300"
         />
         <span className="shrink-0 text-sm font-medium text-stone-400">{unit}</span>
       </div>
@@ -152,6 +180,9 @@ export default function BodyAssessmentForm() {
   const [data, setData] = useState({
     age: "",
     gender: "",
+    name: "",
+    email: "",
+    phone: "",
     weightKg: "",
     heightCm: "",
   });
@@ -167,9 +198,12 @@ export default function BodyAssessmentForm() {
 
   const bodyType = bmi ? getBodyType(bmi) : null;
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const canAdvance = {
     age: Number(data.age) >= 10 && Number(data.age) <= 99,
     gender: !!data.gender,
+    contact: data.name.trim().length >= 2 && EMAIL_RE.test(data.email) && data.phone.length >= 7,
     weight: Number(data.weightKg) >= 30 && Number(data.weightKg) <= 300,
     height: Number(data.heightCm) >= 100 && Number(data.heightCm) <= 250,
     result: true,
@@ -189,14 +223,14 @@ export default function BodyAssessmentForm() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-stone-100 text-stone-900 flex items-center justify-center sm:py-10">
+    <div className="h-screen w-full overflow-hidden bg-stone-100 text-stone-900 flex items-center justify-center p-3 sm:p-6">
       <div
-        className="flex min-h-screen w-full flex-col bg-stone-50
-                   sm:min-h-[calc(100vh-5rem)] sm:max-w-sm sm:rounded-[2rem] sm:border sm:border-stone-200
+        className="flex w-full max-w-2xl flex-col overflow-y-auto bg-stone-50
+                   max-h-[92vh] sm:rounded-[2rem] sm:border sm:border-stone-200
                    sm:shadow-xl sm:shadow-stone-200/60"
       >
         {/* Header: back + progress */}
-        <div className="flex items-center gap-3 px-5 pt-5 sm:px-6 sm:pt-6">
+        <div className="sticky top-0 z-10 flex items-center gap-3 bg-stone-50/95 px-5 pt-5 pb-3 backdrop-blur sm:px-8 sm:pt-6">
           <button
             type="button"
             onClick={goBack}
@@ -212,11 +246,22 @@ export default function BodyAssessmentForm() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col px-5 pt-8 pb-4 sm:px-6">
+        <div className="flex-1 flex flex-col px-5 pt-4 pb-4 sm:px-8">
           {step === "age" && <StepAge value={data.age} onChange={(v) => set("age", v)} />}
 
           {step === "gender" && (
             <StepGender value={data.gender} onChange={(v) => set("gender", v)} />
+          )}
+
+          {step === "contact" && (
+            <StepContact
+              name={data.name}
+              email={data.email}
+              phone={data.phone}
+              onChangeName={(v) => set("name", v)}
+              onChangeEmail={(v) => set("email", v)}
+              onChangePhone={(v) => set("phone", v)}
+            />
           )}
 
           {step === "weight" && (
@@ -234,12 +279,12 @@ export default function BodyAssessmentForm() {
 
         {/* Footer CTA */}
         {step !== "result" && (
-          <div className="px-5 pb-8 pt-2 sm:px-6">
+          <div className="sticky bottom-0 bg-stone-50/95 px-5 pb-5 pt-2 backdrop-blur sm:px-8 sm:pb-6">
             <button
               type="button"
               onClick={goNext}
               disabled={!canAdvance}
-              className="w-full rounded-2xl bg-teal-600 py-4 text-center text-base font-bold text-white transition
+              className="w-full rounded-2xl bg-teal-600 py-3.5 text-center text-base font-bold text-white transition
                          hover:bg-teal-700 disabled:bg-stone-200 disabled:text-stone-400 active:scale-[0.98]"
             >
               Continue
@@ -265,7 +310,7 @@ function StepAge({ value, onChange }) {
         We'll use this to tailor your plan to your age group.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-6 sm:max-w-sm">
         <NumberField
           value={value}
           onChange={onChange}
@@ -292,7 +337,7 @@ function StepGender({ value, onChange }) {
       </p>
 
       {/* pt-6 gives the bleeding head room to sit above the row without being clipped by the page */}
-      <div className="mt-8 flex flex-col gap-6 pt-6 sm:gap-8">
+      <div className="mt-6 grid grid-cols-2 gap-4 pt-6 sm:gap-6">
         {GENDER_OPTIONS.map((opt) => {
           const selected = value === opt.id;
           return (
@@ -300,7 +345,7 @@ function StepGender({ value, onChange }) {
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className="group relative h-36 w-full text-left transition active:scale-[0.99] sm:h-40"
+              className="group relative h-32 w-full text-left transition active:scale-[0.99] sm:h-36"
             >
               {/* Card background — this is the only element that clips, so the border stays a clean rounded rect */}
               <div
@@ -310,8 +355,8 @@ function StepGender({ value, onChange }) {
               />
 
               {/* Label */}
-              <div className="relative z-10 flex h-full w-1/2 flex-col justify-end p-4 sm:p-5">
-                <span className="text-base font-bold text-stone-900 sm:text-lg">{opt.label}</span>
+              <div className="relative z-10 flex h-full w-1/2 flex-col justify-end p-4">
+                <span className="text-base font-bold text-stone-900">{opt.label}</span>
               </div>
 
               {/* Image — sits outside the card's clip box, so the head bleeds above the top edge */}
@@ -319,7 +364,7 @@ function StepGender({ value, onChange }) {
                 src={GENDER_IMAGES[opt.id]}
                 alt={opt.label}
                 className="pointer-events-none absolute -top-6 bottom-0 right-3 z-20 h-[calc(100%+1.5rem)]
-                           w-auto max-w-[55%] object-contain object-bottom drop-shadow-md sm:right-4"
+                           w-auto max-w-[55%] object-contain object-bottom drop-shadow-md"
               />
 
               {/* Selected check badge */}
@@ -338,6 +383,43 @@ function StepGender({ value, onChange }) {
   );
 }
 
+function StepContact({ name, email, phone, onChangeName, onChangeEmail, onChangePhone }) {
+  return (
+    <div className="flex flex-col">
+      <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
+        A few details about you
+      </h1>
+      <p className="mt-2 text-sm text-stone-500">
+        We'll use this to save your results and send your plan.
+      </p>
+
+      <div className="mt-6 flex flex-col gap-3 sm:max-w-md">
+        <TextField
+          value={name}
+          onChange={onChangeName}
+          type="text"
+          placeholder="Full name"
+          autoFocus
+        />
+        <TextField
+          value={email}
+          onChange={onChangeEmail}
+          type="email"
+          inputMode="email"
+          placeholder="Email address"
+        />
+        <TextField
+          value={phone}
+          onChange={(v) => onChangePhone(v.replace(/[^0-9+\s-]/g, ""))}
+          type="tel"
+          inputMode="tel"
+          placeholder="Phone number"
+        />
+      </div>
+    </div>
+  );
+}
+
 function StepWeight({ value, onChange }) {
   return (
     <div className="flex flex-col">
@@ -348,7 +430,7 @@ function StepWeight({ value, onChange }) {
         Be honest — this is just the starting point.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-6 sm:max-w-sm">
         <NumberField
           value={value}
           onChange={onChange}
@@ -374,7 +456,7 @@ function StepHeight({ value, onChange }) {
         We'll use this to calculate your BMI and body type.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-6 sm:max-w-sm">
         <NumberField
           value={value}
           onChange={onChange}
@@ -397,38 +479,43 @@ function StepResult({ bmi, bodyType, gender }) {
   const bodyImage = BODY_IMAGES[gender]?.[bodyType.id];
 
   return (
-    <div className="flex flex-col text-center">
-      <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
-        Your body type
-      </h1>
-      <p className="mt-2 text-sm text-stone-500">Based on your BMI</p>
+    <div className="flex flex-col sm:mx-auto sm:max-w-lg">
+      {/* Top: image + headline/number side-by-side on larger screens to save height */}
+      <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
+        {bodyImage && (
+          <div className="flex shrink-0 justify-center">
+            <img
+              src={bodyImage}
+              alt={`${bodyType.label} body type`}
+              className="h-36 w-auto object-contain drop-shadow-md sm:h-64"
+            />
+          </div>
+        )}
 
-      {bodyImage && (
-        <div className="mt-6 flex justify-center">
-          <img
-            src={bodyImage}
-            alt={`${bodyType.label} body type`}
-            className="h-48 w-auto object-contain drop-shadow-md sm:h-56"
-          />
+        <div className="flex flex-1 flex-col items-center sm:items-start">
+          <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
+            Your body type
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">Based on your BMI</p>
+
+          <div className="mt-3 flex flex-col items-center sm:items-start">
+            <span className="text-5xl font-extrabold tracking-tight" style={{ color: bodyType.accent }}>
+              {roundedBmi}
+            </span>
+            <span
+              className="mt-2 rounded-full px-4 py-1 text-sm font-bold"
+              style={{ backgroundColor: `${bodyType.accent}1A`, color: bodyType.accent }}
+            >
+              {bodyType.label}
+            </span>
+          </div>
+
+          <p className="mx-auto mt-3 max-w-xs text-sm text-stone-500 sm:mx-0">{bodyType.blurb}</p>
         </div>
-      )}
-
-      <div className="mt-6 flex flex-col items-center">
-        <span className="text-5xl font-extrabold tracking-tight sm:text-6xl" style={{ color: bodyType.accent }}>
-          {roundedBmi}
-        </span>
-        <span
-          className="mt-3 rounded-full px-4 py-1 text-sm font-bold"
-          style={{ backgroundColor: `${bodyType.accent}1A`, color: bodyType.accent }}
-        >
-          {bodyType.label}
-        </span>
       </div>
 
-      <p className="mx-auto mt-4 max-w-xs text-sm text-stone-500">{bodyType.blurb}</p>
-
       {/* BMI gauge */}
-      <div className="mt-8 w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mt-6 w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
         <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-sky-400 via-emerald-400 via-40% to-red-400">
           <div
             className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-stone-900 shadow"
@@ -443,10 +530,10 @@ function StepResult({ bmi, bodyType, gender }) {
         </div>
       </div>
 
-      <div className="mt-8 w-full sm:mt-10">
+      <div className="mt-6 w-full">
         <button
           type="button"
-          className="w-full rounded-2xl bg-teal-600 py-4 text-center text-base font-bold text-white
+          className="w-full rounded-2xl bg-teal-600 py-3.5 text-center text-base font-bold text-white
                      transition hover:bg-teal-700 active:scale-[0.98]"
         >
           Get my plan
