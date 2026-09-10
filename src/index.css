@@ -1,0 +1,63 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Cormorant:ital,wght@0,300..700;1,300..700&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Righteous&family=Story+Script&display=swap");
+
+@import url("https://fonts.googleapis.com/css2?family=Lilita+One&display=swap");
+
+@import "tailwindcss";
+
+body {
+  font-family: "Poppins", sans-serif;
+  background-color: #F6F4F0;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+  60% { transform: scale(1); }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Main star: gentle scale + rotate, like it's "generating" */
+@keyframes twinkle-main {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.15) rotate(8deg); opacity: 0.85; }
+}
+
+/* Small stars: pop in and fade, offset timing */
+@keyframes twinkle-small {
+  0%, 60%, 100% { transform: scale(0.4); opacity: 0; }
+  75% { transform: scale(1.2); opacity: 1; }
+  90% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.animate-twinkle-main {
+  animation: twinkle-main 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+}
+
+.animate-twinkle-a {
+  animation: twinkle-small 2.4s ease-in-out infinite;
+  animation-delay: 0s;
+  transform-box: fill-box;
+}
+
+.animate-twinkle-b {
+  animation: twinkle-small 2.4s ease-in-out infinite;
+  animation-delay: 1.2s;
+  transform-box: fill-box;
+}
