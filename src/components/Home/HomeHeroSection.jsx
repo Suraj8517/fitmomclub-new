@@ -22,13 +22,13 @@ const BG_IMAGE = hero;
 const SMOOTHING = 7;
 const PILLS_GAP = 28;
 
-// Scroll-driven image growth: the photo starts as an inset rounded card and
-// expands to full-bleed as you scroll through GROW_END of the hero.
-const GROW_END = 0.3;       // scroll progress (0–1) at which the image is full-bleed
-const START_INSET_X = 3;    // % inset on the left/right at scroll 0
-const START_INSET_Y = 6;    // % inset on the top/bottom at scroll 0
-const START_RADIUS = 36;    // px corner radius at scroll 0
-const START_SCALE = 1.08;   // image scale at scroll 0
+// Full-bleed background image, no inset or rounded corners.
+// On load it scales DOWN (LOAD_SCALE -> 1); on scroll it scales UP (1 -> 1 + SCROLL_SCALE).
+const LOAD_SCALE = 1.25;    // image scale at the very start of the page load
+const SCROLL_SCALE = 0.18;  // extra scale added by the time you reach GROW_END
+const GROW_END = 0.6;       // scroll progress (0–1) at which the scroll scale is complete
+const INTRO_EASE = "1.6s cubic-bezier(0.22, 1, 0.36, 1)"; // load "scale down" transition
+const INTRO_MS = 1800;      // after this the transition is switched off so scroll stays instant
 
 const BADGE_TEXT = "JOIN THE MOM TRIBE • GET STRONGER • FMC •";
 
@@ -283,6 +283,9 @@ export default function HomeHeroSection() {
   const [progress, setProgress] = useState(0);
   const [vh, setVh] = useState(800);
   const [mounted, setMounted] = useState(false);
+  // True once the load "scale down" transition has finished; after that the
+  // transition is removed so the scroll-driven growth stays instant.
+  const [introDone, setIntroDone] = useState(false);
   // Initialised from the real viewport (not a desktop default) so the hero is
   // the right height on the very first layout. Otherwise the page shortens by
   // 80vh on phones after ScrollTrigger has already measured every section
@@ -321,6 +324,13 @@ export default function HomeHeroSection() {
       phaseBObserverRef.current = ro;
     }
   }, []);
+
+  // ─── Intro: let the CSS transition play once, then switch it off ───────────
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const t = setTimeout(() => setIntroDone(true), INTRO_MS);
+    return () => clearTimeout(t);
+  }, [mounted]);
 
   // ─── Scroll-smoothing loop (unchanged) ─────────────────────────────────────
   useEffect(() => {
@@ -471,12 +481,12 @@ export default function HomeHeroSection() {
   // ─── Background parallax ───────────────────────────────────────────────────
   const bgTranslateY = progress * -80;
 
-  // ─── Image grow (scroll-driven) ────────────────────────────────────────────
+  // ─── Image: scales down on load, scales up on scroll ───────────────────────
+  // Before mount the image sits at LOAD_SCALE; once mounted it eases down to 1
+  // (CSS transition). Scrolling then scales it up from 1. After INTRO_MS the
+  // transition is removed so the scroll-driven scale stays instant.
   const grow = easedRemap(progress, 0, GROW_END, 0, 1);
-  const bgInsetX = START_INSET_X * (1 - grow);
-  const bgInsetY = START_INSET_Y * (1 - grow);
-  const bgRadius = START_RADIUS * (1 - grow);
-  const bgScale = START_SCALE - (START_SCALE - 1) * grow;
+  const bgScale = (mounted ? 1 : LOAD_SCALE) * (1 + SCROLL_SCALE * grow);
 
   // ─── Phase A: opening headline ─────────────────────────────────────────────
   const phaseAOpacity = 1 - easedRemap(progress, 0.1, 0.28, 0, 1);
@@ -538,13 +548,8 @@ export default function HomeHeroSection() {
       >
         {/* ── Background ── */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* data-hero="bg" grows from an inset card to full-bleed with scroll;
-              the child below keeps the scroll parallax transform. */}
-          <div
-            data-hero="bg"
-            className="absolute inset-0 will-change-transform"
-           
-          >
+          <div data-hero="bg" className="absolute inset-0 will-change-transform">
+            {/* Parallax + scale layer */}
             <div
               className="absolute will-change-transform"
               style={{
@@ -552,7 +557,8 @@ export default function HomeHeroSection() {
                 bottom: "-20%",
                 left: 0,
                 right: 0,
-                transform: `translate3d(0px, ${bgTranslateY}px, 0px)`,
+                transform: `translate3d(0px, ${bgTranslateY}px, 0px) scale(${bgScale})`,
+                transition: introDone ? "none" : `transform ${INTRO_EASE}`,
               }}
             >
               <img
@@ -630,16 +636,12 @@ export default function HomeHeroSection() {
           </div>
         </div>
 
-
         {/* Scroll cue */}
         <div
           className="absolute bottom-6 left-5 z-10 flex flex-col items-start gap-1.5 text-xs font-medium uppercase tracking-widest text-white sm:bottom-8 sm:left-12 lg:left-16"
           style={{ opacity: scrollCueOpacity }}
         >
-          <div
-            data-hero="cue"
-            className="flex flex-col items-center gap-2"
-          >
+          <div data-hero="cue" className="flex flex-col items-center gap-2">
             <svg
               className="hero-scroll-chevron h-3 w-3 text-white/80"
               viewBox="0 0 24 24"
