@@ -218,7 +218,7 @@ export default function Footer() {
   return (
     <footer
       ref={rootRef}
-      className="bg-gradient-to-b from-white to-[#f6f6f7] px-4 pb-6 pt-14 text-[#111] sm:px-8 sm:pt-20"
+      className="bg-gradient-to-b from-[#F5F3F0] to-[#f6f6f7] px-4 pb-6 pt-14 text-[#111] sm:px-8 sm:pt-20"
       style={{ fontFamily: FONT }}
     >
       <style>{`
