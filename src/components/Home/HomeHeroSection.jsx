@@ -543,10 +543,7 @@ export default function HomeHeroSection() {
           <div
             data-hero="bg"
             className="absolute inset-0 will-change-transform"
-            style={{
-              clipPath: `inset(${bgInsetY}% ${bgInsetX}% ${bgInsetY}% ${bgInsetX}% round ${bgRadius}px)`,
-              transform: `scale(${bgScale})`,
-            }}
+           
           >
             <div
               className="absolute will-change-transform"

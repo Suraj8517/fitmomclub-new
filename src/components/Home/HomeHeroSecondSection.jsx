@@ -195,7 +195,7 @@ export default function HomeHeroSecondSection() {
   return (
     <section
       ref={containerRef}
-      className="relative h-[120vh] w-full bg-[#F6F5F1] z-10 py-6 sm:py-8 lg:pb-25 lg:pt-10 mt-[-60vh] sm:mt-[-70vh] overflow-hidden"
+      className="relative h-[110vh]md:h-[120vh] w-full bg-[#F6F5F1] z-10 py-6 sm:py-8 lg:pb-25 lg:pt-10 mt-[-60vh] sm:mt-[-70vh] overflow-hidden"
       style={{
         transform: `translate3d(0, ${offsetY}px, 0)`,
         willChange: "transform",
