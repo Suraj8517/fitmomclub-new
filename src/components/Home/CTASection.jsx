@@ -1,39 +1,81 @@
-import { useRef, useEffect } from "react";
+import { useRef, useLayoutEffect } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import heroBg from "../../assets/home/hero.webp";
 import { Link } from "react-router-dom";
 import ConsultationButton from "../Helper/ConsultationButton";
 
+gsap.registerPlugin(ScrollTrigger);
+
+// ── Image scroll settings ────────────────────────────────────────────────────
+const START_SCALE = 1.35; // how large the image is when the section enters
+const PARALLAX_PCT = 15;  // vertical drift: -15% → +15% over the whole pass
+const SCRUB = 0.6;        // seconds the image takes to catch up with the scroll
+
 export default function CTASection() {
+  const sectionRef = useRef(null);
   const imgRef = useRef(null);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!imgRef.current) return;
-      const section = imgRef.current.closest("section");
-      const rect = section.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    const img = imgRef.current;
+    if (!section || !img) return undefined;
 
-      // Only apply while section is visible
-      if (rect.bottom < 0 || rect.top > viewportHeight) return;
+    const mm = gsap.matchMedia();
 
-      // How far the section has scrolled through the viewport (0 = entering bottom, 1 = leaving top)
-      const progress = 1 - rect.bottom / (viewportHeight + rect.height);
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      // Scale: starts large as the section enters the screen and settles to
+      // its normal size by the time the section is centred in the viewport.
+      const scaleTween = gsap.fromTo(
+        img,
+        { scale: START_SCALE },
+        {
+          scale: 1,
+          ease: "power1.out",
+          scrollTrigger: {
+            trigger: section,
+            start: "top bottom",
+            end: "center center",
+            scrub: SCRUB,
+          },
+        }
+      );
 
-      // Shift image between -15% (top) and +15% (bottom) relative to normal position
-      const offset = (progress - 0.5) * 30; // range: -15 to +15
-      imgRef.current.style.transform = `translateY(${offset}%)`;
-    };
+      // Parallax drift across the full pass (same range as before).
+      const driftTween = gsap.fromTo(
+        img,
+        { yPercent: -PARALLAX_PCT },
+        {
+          yPercent: PARALLAX_PCT,
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: SCRUB,
+          },
+        }
+      );
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // run once on mount
+      return () => {
+        [scaleTween, driftTween].forEach((t) => {
+          t.scrollTrigger?.kill();
+          t.kill();
+        });
+        gsap.set(img, { clearProps: "transform" });
+      };
+    });
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => mm.revert();
   }, []);
 
   return (
-    <section className="relative w-full h-[70vh] md:h-[75vh] lg:h-screen overflow-hidden font-['Poppins',sans-serif]">
+    <section
+      ref={sectionRef}
+      className="relative w-full h-[70vh] md:h-[75vh] lg:h-screen overflow-hidden font-['Poppins',sans-serif]"
+    >
 
-      {/* Background image — oversized so parallax shift stays filled */}
+      {/* Background image — oversized so the scale + parallax stay filled */}
       <img
         ref={imgRef}
         src={heroBg}

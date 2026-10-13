@@ -28,17 +28,16 @@ gsap.registerPlugin(ScrollTrigger);
 // faster there, so content never scrolls away before its entrance plays.
 const isMobile = () =>
   typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
-
-const mom ="https://res.cloudinary.com/q1vba78b/image/upload/v1784204587/mother_wvlet7.webp";
+const mom ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863501/mother_vfrvcr.webp";
+const wellness="https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/wellness_e74adj.webp"
+const online ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/online_bq5yyz.webp"
+const trainer = "https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/trainer_bxgvuy.webp"
+const support ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/support_xgn6cr.webp"
+const goals="https://res.cloudinary.com/q1vba78b/image/upload/v1791863504/goal_oip8yb.webp"
+const nutrition ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/nutrition_rodna3.webp"
 const sleep="https://res.cloudinary.com/q1vba78b/image/upload/v1786101450/sleep_s2d5rx.webp"
-const online ="https://res.cloudinary.com/q1vba78b/image/upload/v1784204588/online_agdx4b.webp"
-const trainer = "https://res.cloudinary.com/q1vba78b/image/upload/v1784204590/trainer_pwlz4t.webp"
-const support ="https://res.cloudinary.com/q1vba78b/image/upload/v1784204589/support_xav2qs.webp"
-const tracker = "https://res.cloudinary.com/q1vba78b/image/upload/v1786105331/activity_fjkxqw.webp"
-const goals="https://res.cloudinary.com/q1vba78b/image/upload/v1784204588/goal_myqwro.webp"
-const nutrition ="https://res.cloudinary.com/q1vba78b/image/upload/v1784204589/nutrition_zyz46h.webp"
 const cycle ="https://res.cloudinary.com/q1vba78b/image/upload/v1786078998/cycle_f6p4lu.webp"
-
+const tracker = "https://res.cloudinary.com/q1vba78b/image/upload/v1786105331/activity_fjkxqw.webp"
 const stories = [
 {
   id: 1,
@@ -313,6 +312,7 @@ function StoryScene({ story, index }) {
         <div
           className="absolute inset-0 h-full w-full"
           style={{
+           
             background:
               "linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.75) 100%)",
           }}
@@ -373,7 +373,7 @@ function StoryScene({ story, index }) {
         <div
           data-dim
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-black"
+          className="pointer-events-none absolute inset-0 bg-black/20"
           style={{ zIndex: 3, opacity: 0 }}
         />
       </div>
