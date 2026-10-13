@@ -1,39 +1,50 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { Link } from "react-router-dom";
+import { ArrowUpRight } from "lucide-react";
+import { gsap } from "gsap";
 import hero from "../../assets/home/hero.jpg";
 import RunningSVG from "../Helper/StorySection/RunningSVG";
-import Heart from "../Helper/Heart"
+import Heart from "../Helper/Heart";
 import ConsultationButton from "../Helper/ConsultationButton";
+
 const BG_IMAGE = hero;
 const SMOOTHING = 7;
-
 const PILLS_GAP = 28;
+
+const BADGE_TEXT = "JOIN THE MOM TRIBE • GET STRONGER • FMC •";
 
 const pills = [
   {
     label: "Proactive and adaptive coaching",
     bg: "bg-emerald-50",
     text: "text-emerald-900",
-    icon: (
-      <RunningSVG color="#1c8c77" />
-    ),
+    icon: <RunningSVG color="#1c8c77" />,
   },
   {
     label: "Holistic health",
     bg: "bg-violet-50",
     text: "text-violet-900",
     icon: (
-     <svg
-  viewBox="0 0 24 24"
-  fill="none"
-  className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-violet-600 animate-heartbeat"
->
-  <path
-    d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.6-9.5 9-9.5 9Z"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinejoin="round"
-  />
-</svg>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-violet-600 animate-heartbeat"
+      >
+        <path
+          d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.6-9.5 9-9.5 9Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
     ),
   },
   {
@@ -41,57 +52,243 @@ const pills = [
     bg: "bg-sky-50",
     text: "text-sky-900",
     icon: (
-  <svg
-  viewBox="0 0 24 24"
-  fill="none"
-  className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sky-600 overflow-visible"
->
-  <path
-    d="M5 3v4M3 5h4"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinejoin="round"
-    className="animate-twinkle-a origin-[5px_5px]"
-  />
-  <path
-    d="M19 13v4M17 15h4"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinejoin="round"
-    className="animate-twinkle-b origin-[19px_15px]"
-  />
-  <path
-    d="M11 4l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinejoin="round"
-    className="animate-twinkle-main origin-[11px_11px]"
-  />
-</svg>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sky-600 overflow-visible"
+      >
+        <path
+          d="M5 3v4M3 5h4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          className="animate-twinkle-a origin-[5px_5px]"
+        />
+        <path
+          d="M19 13v4M17 15h4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          className="animate-twinkle-b origin-[19px_15px]"
+        />
+        <path
+          d="M11 4l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          className="animate-twinkle-main origin-[11px_11px]"
+        />
+      </svg>
     ),
   },
 ];
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* SplitWords — masked word-by-word reveal (rise + un-rotate + un-blur).       */
+/* Animates only the inner word spans, never the scroll-driven parent, so it   */
+/* can't fight the inline transforms the scroll logic applies.                 */
+/* Re-plays every time it mounts (Phase B mounts each time it re-enters).      */
+/* ────────────────────────────────────────────────────────────────────────── */
+function SplitWords({ text, delay = 0, stagger = 0.07 }) {
+  const ref = useRef(null);
+  const words = text.split(" ");
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.fromTo(
+        el.querySelectorAll("[data-w]"),
+        {
+          yPercent: 115,
+          rotate: 5,
+          opacity: 0,
+          filter: "blur(10px)",
+          transformOrigin: "0% 100%",
+        },
+        {
+          yPercent: 0,
+          rotate: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 1.1,
+          ease: "power4.out",
+          stagger,
+          delay,
+          clearProps: "filter",
+        }
+      );
+    });
+    return () => mm.revert();
+  }, [delay, stagger]);
+
+  return (
+    <span ref={ref}>
+      <span className="sr-only">{text}</span>
+      {words.map((w, i) => (
+        <Fragment key={`${w}-${i}`}>
+          <span
+            aria-hidden="true"
+            className="inline-block overflow-hidden pb-[0.14em] -mb-[0.14em] align-bottom"
+          >
+            <span data-w className="inline-block will-change-transform">
+              {w}
+            </span>
+          </span>{" "}
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* PillsBlock — pills + eyebrow + CTA. Staggered spring-in, clip-path CTA      */
+/* reveal (borrowed from the footer), and a magnetic CTA on fine pointers.     */
+/* ────────────────────────────────────────────────────────────────────────── */
+function PillsBlock() {
+  const rootRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return undefined;
+    const q = gsap.utils.selector(root);
+    const mm = gsap.matchMedia();
+
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const pillEls = q("[data-pill]");
+      gsap
+        .timeline({ defaults: { ease: "power3.out" } })
+        .from(pillEls, {
+          y: 50,
+          scale: 0.7,
+          opacity: 0,
+          rotate: (i) => (i % 2 ? 5 : -5),
+          duration: 0.8,
+          stagger: 0.09,
+          ease: "back.out(1.8)",
+          // Hand control back to the CSS hover transform once settled.
+          clearProps: "transform",
+          onComplete: () =>
+            pillEls.forEach((p) => p.setAttribute("data-ready", "")),
+        })
+        .from(q("[data-eyebrow]"), { y: 16, opacity: 0, duration: 0.5 }, "-=0.35")
+        .fromTo(
+          q("[data-cta]"),
+          { clipPath: "inset(0% 50% 0% 50% round 999px)", opacity: 0 },
+          {
+            clipPath: "inset(0% 0% 0% 0% round 999px)",
+            opacity: 1,
+            duration: 0.8,
+            ease: "power4.out",
+            clearProps: "clipPath",
+          },
+          "-=0.25"
+        );
+    });
+
+    // Magnetic CTA — it leans toward the cursor, then springs back.
+    mm.add(
+      "(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)",
+      () => {
+        const zone = q("[data-magnet]")[0];
+        const target = q("[data-cta]")[0];
+        if (!zone || !target) return undefined;
+
+        const onMove = (e) => {
+          const r = zone.getBoundingClientRect();
+          const dx = e.clientX - (r.left + r.width / 2);
+          const dy = e.clientY - (r.top + r.height / 2);
+          gsap.to(target, {
+            x: dx * 0.22,
+            y: dy * 0.3,
+            duration: 0.4,
+            ease: "power3.out",
+            overwrite: "auto",
+          });
+        };
+        const onLeave = () =>
+          gsap.to(target, {
+            x: 0,
+            y: 0,
+            duration: 0.9,
+            ease: "elastic.out(1, 0.4)",
+            overwrite: "auto",
+          });
+
+        zone.addEventListener("pointermove", onMove);
+        zone.addEventListener("pointerleave", onLeave);
+        return () => {
+          zone.removeEventListener("pointermove", onMove);
+          zone.removeEventListener("pointerleave", onLeave);
+        };
+      }
+    );
+
+    return () => mm.revert();
+  }, []);
+
+  return (
+    <div ref={rootRef}>
+      {/* Pills */}
+      <div className="flex flex-col items-start gap-2 sm:gap-3 mb-4 sm:mb-6">
+        {pills.map((pill) => (
+          <span
+            key={pill.label}
+            data-pill
+            className={`hero-pill inline-flex items-center gap-1.5 sm:gap-2 rounded-full ${pill.bg} ${
+              pill.label === "Proactive and adaptive coaching"
+                ? "px-3 py-1 sm:px-4 sm:py-3"
+                : "px-4 py-2.5 sm:px-6 sm:py-4"
+            } text-xs sm:text-lg font-medium ${pill.text} shadow-sm`}
+          >
+            {pill.icon}
+            {pill.label}
+          </span>
+        ))}
+      </div>
+
+      <p
+        data-eyebrow
+        className="mb-2 sm:mb-3 text-xs sm:text-lg font-medium text-white/80"
+      >
+        Begin Your Transformation
+      </p>
+
+      {/* Magnet hit-area is padded so the pull starts just before the cursor
+          reaches the button; negative margin keeps layout unchanged. */}
+      <div data-magnet className="-m-5 inline-block p-5">
+        <div data-cta>
+          <ConsultationButton label="Book a Free Consultation " />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeHeroSection() {
   const wrapperRef = useRef(null);
+  const stageRef = useRef(null);
   const [progress, setProgress] = useState(0);
   const [vh, setVh] = useState(800);
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [scrollLengthVh, setScrollLengthVh] = useState(300);
 
+  const rawBadgeId = useId();
+  const badgeId = `badge-${rawBadgeId.replace(/:/g, "")}`;
+
   const targetRef = useRef(0);
   const renderedRef = useRef(0);
   const rafRef = useRef(null);
   const lastTimeRef = useRef(null);
 
-  // Live-measured height of the Phase B headline, so the pills/CTA block
-  // that follows it sits at a tight, correct offset on every screen size
-  // (mobile's smaller type means a shorter block, so it stays compact
-  // automatically instead of relying on a desktop-tuned magic number).
+  // Live-measured height of the Phase B headline so the pills/CTA block sits
+  // at a tight offset on every screen size. useCallback keeps the ref stable so
+  // the ResizeObserver isn't torn down and rebuilt on every animation frame.
   const phaseBHeightRef = useRef(220);
   const phaseBObserverRef = useRef(null);
-  const phaseBMeasureRef = (node) => {
+  const phaseBMeasureRef = useCallback((node) => {
     if (phaseBObserverRef.current) {
       phaseBObserverRef.current.disconnect();
       phaseBObserverRef.current = null;
@@ -104,21 +301,18 @@ export default function HomeHeroSection() {
       ro.observe(node);
       phaseBObserverRef.current = ro;
     }
-  };
+  }, []);
 
+  // ─── Scroll-smoothing loop (unchanged) ─────────────────────────────────────
   useEffect(() => {
     const applyViewportState = () => {
       setVh(window.innerHeight);
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
-      // Shorter scroll runway on mobile — the sequence needs less
-      // distance to feel deliberate on a smaller, narrower screen.
       setScrollLengthVh(mobile ? 220 : 300);
     };
 
     applyViewportState();
-    // Small delay so the entrance animations play right after first paint
-    // rather than racing the browser's initial layout/paint.
     const mountTimer = requestAnimationFrame(() => setMounted(true));
 
     const updateTarget = () => {
@@ -163,30 +357,118 @@ export default function HomeHeroSection() {
     };
   }, []);
 
+  // ─── GSAP: intro sequence, cursor glow, badge spin ─────────────────────────
+  useEffect(() => {
+    const root = wrapperRef.current;
+    const stage = stageRef.current;
+    if (!root || !stage) return undefined;
+    const q = gsap.utils.selector(root);
+    const mm = gsap.matchMedia();
+
+    /* ---------- Page-load sequence ---------- */
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      // The photo opens like a card expanding to full-bleed.
+      tl.fromTo(
+        q('[data-hero="bg"]'),
+        { clipPath: "inset(7% 7% 7% 7% round 36px)", scale: 1.18 },
+        {
+          clipPath: "inset(0% 0% 0% 0% round 0px)",
+          scale: 1,
+          duration: 1.6,
+          ease: "expo.inOut",
+          clearProps: "clipPath",
+        }
+      )
+        .from(
+          q('[data-hero="badge"]'),
+          { scale: 0, rotate: -120, opacity: 0, duration: 1, ease: "back.out(1.7)" },
+          1.1
+        )
+        .from(q('[data-hero="cue"]'), { y: 20, opacity: 0, duration: 0.6 }, 1.4);
+
+      // Rotating badge — keeps turning, speeds up on hover.
+      const spin = gsap.to(q('[data-hero="badge-spin"]'), {
+        rotation: 360,
+        duration: 14,
+        ease: "none",
+        repeat: -1,
+        transformOrigin: "50% 50%",
+      });
+      const badge = q('[data-hero="badge"]')[0];
+      const faster = () => gsap.to(spin, { timeScale: 4, duration: 0.6 });
+      const normal = () => gsap.to(spin, { timeScale: 1, duration: 0.8 });
+      badge?.addEventListener("pointerenter", faster);
+      badge?.addEventListener("pointerleave", normal);
+
+      return () => {
+        badge?.removeEventListener("pointerenter", faster);
+        badge?.removeEventListener("pointerleave", normal);
+      };
+    });
+
+    /* ---------- Cursor glow (mouse / trackpad only) ---------- */
+    mm.add(
+      "(prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine)",
+      () => {
+        const glow = q('[data-hero="glow"]')[0];
+        if (!glow) return undefined;
+
+        gsap.set(glow, { xPercent: -50, yPercent: -50, opacity: 0, scale: 0.6 });
+        const glowX = gsap.quickTo(glow, "x", { duration: 0.7, ease: "power3" });
+        const glowY = gsap.quickTo(glow, "y", { duration: 0.7, ease: "power3" });
+
+        const onMove = (e) => {
+          const r = stage.getBoundingClientRect();
+          glowX(e.clientX - r.left);
+          glowY(e.clientY - r.top);
+        };
+        const onEnter = () =>
+          gsap.to(glow, { opacity: 1, scale: 1, duration: 0.5, overwrite: "auto" });
+        const onLeave = () =>
+          gsap.to(glow, { opacity: 0, scale: 0.6, duration: 0.5, overwrite: "auto" });
+
+        stage.addEventListener("pointermove", onMove);
+        stage.addEventListener("pointerenter", onEnter);
+        stage.addEventListener("pointerleave", onLeave);
+
+        return () => {
+          stage.removeEventListener("pointermove", onMove);
+          stage.removeEventListener("pointerenter", onEnter);
+          stage.removeEventListener("pointerleave", onLeave);
+        };
+      }
+    );
+
+    return () => mm.revert();
+  }, []);
+
   // ─── Background parallax ───────────────────────────────────────────────────
   const bgTranslateY = progress * -80;
 
   // ─── Phase A: opening headline ─────────────────────────────────────────────
-  // Sits at bottom third, fades + drifts up and out between 0.10 → 0.28
-  const phaseAOpacity    = 1 - easedRemap(progress, 0.10, 0.28, 0, 1);
-  const phaseATranslateY = easedRemap(progress, 0.10, 0.28, 0, -80);
+  const phaseAOpacity = 1 - easedRemap(progress, 0.1, 0.28, 0, 1);
+  const phaseATranslateY = easedRemap(progress, 0.1, 0.28, 0, -80);
+  // Defocuses as it leaves, so the exit feels like a rack focus.
+  const phaseABlur = (1 - phaseAOpacity) * 10;
 
   // ─── Scroll cue ────────────────────────────────────────────────────────────
   const scrollCueOpacity = 1 - easedRemap(progress, 0, 0.08, 0, 1);
 
-  // ─── Phase B: large text — enters from below, scrolls through naturally ────
-  // Starts at +vh (below screen), travels to -vh (above screen) linearly
-  // Entry window: 0.20 → 0.55  (text scrolls from off-bottom to top-of-screen)
-  // The text moves from +100vh to -60vh over the full scroll range
-  const phaseBTranslateY = easedRemap(progress, 0.20, 1.0, vh, -vh * 0.6);
-  // Clip visibility: only show when on screen (between +vh and -content-height)
+  // ─── Phase B ───────────────────────────────────────────────────────────────
+  const phaseBTranslateY = easedRemap(progress, 0.2, 1.0, vh, -vh * 0.6);
   const phaseBVisible = progress > 0.18;
 
-  // ─── Pills + CTA — anchored just below Phase B, scroll together ────────────
-  // Offset by the live-measured Phase B height + a small fixed gap, so this
-  // tracks correctly whether the headline above it is one line or two.
+  // ─── Pills + CTA ───────────────────────────────────────────────────────────
   const pillsOffset = phaseBHeightRef.current + PILLS_GAP;
-  const pillsTranslateY = easedRemap(progress, 0.20, 1.0, vh + pillsOffset, -vh * 0.6 + pillsOffset);
+  const pillsTranslateY = easedRemap(
+    progress,
+    0.2,
+    1.0,
+    vh + pillsOffset,
+    -vh * 0.6 + pillsOffset
+  );
   const pillsVisible = progress > 0.18;
 
   return (
@@ -196,10 +478,6 @@ export default function HomeHeroSection() {
       className="relative"
     >
       <style>{`
-        @keyframes heroFadeUp {
-          from { opacity: 0; transform: translateY(36px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
         @keyframes heroKenBurns {
           0%, 100% { transform: scale(1.06); }
           50%      { transform: scale(1.14); }
@@ -208,82 +486,81 @@ export default function HomeHeroSection() {
           0%, 100% { opacity: 0.45; transform: translateY(0); }
           50%      { opacity: 1; transform: translateY(5px); }
         }
-        .hero-fade-up {
-          opacity: 0;
-          animation: heroFadeUp 1s cubic-bezier(0.22,1,0.36,1) forwards;
-        }
-        .hero-kenburns {
-          animation: heroKenBurns 16s ease-in-out infinite;
-        }
-        .hero-scroll-chevron {
-          animation: heroScrollCue 1.6s ease-in-out infinite;
-        }
-        .hero-pill,
-        .hero-cta {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .hero-pill:hover,
-        .hero-cta:hover {
-          transform: translateY(-2px) scale(1.03);
-        }
-        .hero-pill:active,
-        .hero-cta:active {
-          transform: scale(0.97);
-        }
+        .hero-kenburns { animation: heroKenBurns 16s ease-in-out infinite; }
+        .hero-scroll-chevron { animation: heroScrollCue 1.6s ease-in-out infinite; }
+
+        /* Hover feedback. The transition is only switched on once GSAP has
+           finished the entrance (data-ready) so the two never fight. */
+        .hero-pill:hover { transform: translateY(-2px) scale(1.03); }
+        .hero-pill:active { transform: scale(0.97); }
+        .hero-pill[data-ready] { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+
         @media (prefers-reduced-motion: reduce) {
-          .hero-fade-up { opacity: 1; animation: none; transform: none; }
           .hero-kenburns { animation: none; }
           .hero-scroll-chevron { animation: none; }
         }
       `}</style>
 
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-
+      <div
+        ref={stageRef}
+        className="sticky top-0 h-screen w-full overflow-hidden"
+      >
         {/* ── Background ── */}
         <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute will-change-transform"
-            style={{
-              top: "-20%",
-              bottom: "-20%",
-              left: 0,
-              right: 0,
-              transform: `translate3d(0px, ${bgTranslateY}px, 0px)`,
-            }}
-          >
-            <img
-              src={BG_IMAGE}
-              alt=""
-              className="hero-kenburns absolute inset-0 w-full h-full object-cover object-top-right"
-              loading="eager"
-            />
+          {/* data-hero="bg" is the GSAP intro layer (clip-path + scale);
+              the child below keeps the scroll parallax transform. */}
+          <div data-hero="bg" className="absolute inset-0 will-change-transform">
+            <div
+              className="absolute will-change-transform"
+              style={{
+                top: "-20%",
+                bottom: "-20%",
+                left: 0,
+                right: 0,
+                transform: `translate3d(0px, ${bgTranslateY}px, 0px)`,
+              }}
+            >
+              <img
+                src={BG_IMAGE}
+                alt=""
+                className="hero-kenburns absolute inset-0 w-full h-full object-cover object-top-right"
+                loading="eager"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/5" />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/5" />
         </div>
+
+        {/* ── Cursor glow: above the photo, below the copy ── */}
+        <div
+          data-hero="glow"
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 z-[6] hidden h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.28)_0%,rgba(255,255,255,0)_65%)] mix-blend-soft-light md:block"
+        />
 
         {/* ── Content ── */}
         <div className="relative z-10 h-full w-full px-5 sm:px-12 lg:px-16">
           <div className="relative h-full w-full max-w-5xl">
-
-            {/* Phase A: opening headline — fixed near bottom, exits up on scroll,
-                fades/rises up once on page load */}
+            {/* Phase A: opening headline */}
             <div
-              className="absolute left-0 will-change-[opacity,transform]"
+              className="absolute left-0 will-change-[opacity,transform,filter]"
               style={{
                 bottom: "18%",
                 opacity: mounted ? phaseAOpacity : 0,
                 transform: `translateY(${mounted ? phaseATranslateY : 24}px)`,
+                filter: `blur(${phaseABlur}px)`,
                 pointerEvents: phaseAOpacity > 0.05 ? "auto" : "none",
               }}
             >
-              <h1 className="hero-fade-up 2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-tight text-white sm:text-6xl 2xl:text-[5.95rem]">
-                Join the #1 Fitness &amp; Wellness
-                Community for Moms
+              <h1 className="2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-tight text-white sm:text-6xl 2xl:text-[5.95rem]">
+                <SplitWords
+                  text="Join the #1 Fitness & Wellness Community for Moms"
+                  delay={0.7}
+                />
               </h1>
             </div>
 
-            {/* Phase B: second headline — scrolls up through screen naturally,
-                pops in with a fade-up each time it re-enters view */}
+            {/* Phase B: second headline — words rise in each time it re-enters */}
             {phaseBVisible && (
               <div
                 className="absolute left-0 will-change-transform"
@@ -295,78 +572,52 @@ export default function HomeHeroSection() {
               >
                 <p
                   ref={phaseBMeasureRef}
-                  className="hero-fade-up max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-white sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
+                  className="max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-white sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
                 >
-                  A program that fits
-your body, your goals
-and your life.
+                  <SplitWords text="A program that fits your body, your goals and your life." />
                 </p>
               </div>
             )}
 
-            {/* Pills + CTA — scrolls up right below Phase B, each pill/button
-                pops in with a short stagger */}
+            {/* Pills + CTA */}
             {pillsVisible && (
               <div
-                className="absolute left-0 "
+                className="absolute left-0"
                 style={{
                   top: 0,
                   transform: `translateY(${pillsTranslateY}px)`,
                   pointerEvents: "auto",
                 }}
               >
-                {/* Pills */}
-                <div className="flex flex-col items-start gap-2 sm:gap-3 mb-4 sm:mb-6">
-                  {pills.map((pill, i) => (
-                    <span
-                      key={pill.label}
-className={`hero-fade-up hero-pill inline-flex items-center gap-1.5 sm:gap-2 rounded-full ${pill.bg} ${
-  pill.label === "Proactive and adaptive coaching"
-    ? "px-3 py-1 sm:px-4 sm:py-3"
-    : "px-4 py-2.5 sm:px-6 sm:py-4"
-} text-xs sm:text-lg font-medium ${pill.text} shadow-sm`}                      style={{ animationDelay: `${0.1 + i * 0.08}s` }}
-                    >
-                      {pill.icon}
-                      {pill.label}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Download CTA */}
-                <p
-                  className="hero-fade-up mb-2 sm:mb-3 text-xs sm:text-lg font-medium text-white/80"
-                  style={{ animationDelay: "0.3s" }}
-                >
-Begin Your Transformation
-                </p>
-                <ConsultationButton label="Book a Free Consultation "/>
+                <PillsBlock />
               </div>
-
             )}
-
           </div>
         </div>
+
 
         {/* Scroll cue */}
         <div
           className="absolute bottom-6 left-5 z-10 flex flex-col items-start gap-1.5 text-xs font-medium uppercase tracking-widest text-white sm:bottom-8 sm:left-12 lg:left-16"
           style={{ opacity: scrollCueOpacity }}
         >
-          <div className="flex flex-col items-center gap-2">
-    <svg
-            className="hero-scroll-chevron h-3 w-3 text-white/80"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <div
+            data-hero="cue"
+            className="flex flex-col items-center gap-2"
           >
-            <path d="M6 9l6 6 6-6" />
-          </svg>          </div>
-        
+            <svg
+              className="hero-scroll-chevron h-3 w-3 text-white/80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
         </div>
-
       </div>
     </section>
   );

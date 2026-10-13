@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import male from '../assets/form/male.png'
 import female from '../assets/form/female.png'
 
@@ -18,7 +18,7 @@ import femaleExtremeObese from '../assets/form/female/female-extreme-obese.png'
 /**
  * BodyAssessmentForm
  * -------------------
- * Multi-step onboarding flow: Age -> Gender -> Weight -> Height -> Result (BMI + body type)
+ * Multi-step onboarding flow: Age -> Gender -> Contact -> Weight -> Height -> Result (BMI + body type)
  *
  * Drop this into a React + Tailwind project. No extra dependencies required.
  * Light theme with custom +/- stepper buttons on every numeric field (native
@@ -67,14 +67,14 @@ const BODY_TYPES = [
     id: "underweight",
     label: "Underweight",
     max: 18.5,
-    accent: "#0284C7",
+    accent: "#0891B2",
     blurb: "You're on the lighter end. A structured plan can help you build muscle and strength.",
   },
   {
     id: "normal",
     label: "Normal",
     max: 25,
-    accent: "#16A34A",
+    accent: "#0D9488",
     blurb: "You're in a healthy range. The right plan will help you build definition and maintain it.",
   },
   {
@@ -105,17 +105,267 @@ function getBodyType(bmi) {
 }
 
 // ---------------------------------------------------------------------------
+// Country dial codes (ISO 3166-1 alpha-2 -> name + calling code)
+// ---------------------------------------------------------------------------
+
+const COUNTRY_CODES = [
+  { iso: "AF", name: "Afghanistan", dial: "+93" },
+  { iso: "AL", name: "Albania", dial: "+355" },
+  { iso: "DZ", name: "Algeria", dial: "+213" },
+  { iso: "AS", name: "American Samoa", dial: "+1684" },
+  { iso: "AD", name: "Andorra", dial: "+376" },
+  { iso: "AO", name: "Angola", dial: "+244" },
+  { iso: "AI", name: "Anguilla", dial: "+1264" },
+  { iso: "AG", name: "Antigua and Barbuda", dial: "+1268" },
+  { iso: "AR", name: "Argentina", dial: "+54" },
+  { iso: "AM", name: "Armenia", dial: "+374" },
+  { iso: "AW", name: "Aruba", dial: "+297" },
+  { iso: "AU", name: "Australia", dial: "+61" },
+  { iso: "AT", name: "Austria", dial: "+43" },
+  { iso: "AZ", name: "Azerbaijan", dial: "+994" },
+  { iso: "BS", name: "Bahamas", dial: "+1242" },
+  { iso: "BH", name: "Bahrain", dial: "+973" },
+  { iso: "BD", name: "Bangladesh", dial: "+880" },
+  { iso: "BB", name: "Barbados", dial: "+1246" },
+  { iso: "BY", name: "Belarus", dial: "+375" },
+  { iso: "BE", name: "Belgium", dial: "+32" },
+  { iso: "BZ", name: "Belize", dial: "+501" },
+  { iso: "BJ", name: "Benin", dial: "+229" },
+  { iso: "BM", name: "Bermuda", dial: "+1441" },
+  { iso: "BT", name: "Bhutan", dial: "+975" },
+  { iso: "BO", name: "Bolivia", dial: "+591" },
+  { iso: "BA", name: "Bosnia and Herzegovina", dial: "+387" },
+  { iso: "BW", name: "Botswana", dial: "+267" },
+  { iso: "BR", name: "Brazil", dial: "+55" },
+  { iso: "IO", name: "British Indian Ocean Territory", dial: "+246" },
+  { iso: "BN", name: "Brunei", dial: "+673" },
+  { iso: "BG", name: "Bulgaria", dial: "+359" },
+  { iso: "BF", name: "Burkina Faso", dial: "+226" },
+  { iso: "BI", name: "Burundi", dial: "+257" },
+  { iso: "KH", name: "Cambodia", dial: "+855" },
+  { iso: "CM", name: "Cameroon", dial: "+237" },
+  { iso: "CA", name: "Canada", dial: "+1" },
+  { iso: "CV", name: "Cape Verde", dial: "+238" },
+  { iso: "KY", name: "Cayman Islands", dial: "+1345" },
+  { iso: "CF", name: "Central African Republic", dial: "+236" },
+  { iso: "TD", name: "Chad", dial: "+235" },
+  { iso: "CL", name: "Chile", dial: "+56" },
+  { iso: "CN", name: "China", dial: "+86" },
+  { iso: "CO", name: "Colombia", dial: "+57" },
+  { iso: "KM", name: "Comoros", dial: "+269" },
+  { iso: "CG", name: "Congo", dial: "+242" },
+  { iso: "CD", name: "Congo (DRC)", dial: "+243" },
+  { iso: "CK", name: "Cook Islands", dial: "+682" },
+  { iso: "CR", name: "Costa Rica", dial: "+506" },
+  { iso: "HR", name: "Croatia", dial: "+385" },
+  { iso: "CU", name: "Cuba", dial: "+53" },
+  { iso: "CW", name: "Curaçao", dial: "+599" },
+  { iso: "CY", name: "Cyprus", dial: "+357" },
+  { iso: "CZ", name: "Czech Republic", dial: "+420" },
+  { iso: "DK", name: "Denmark", dial: "+45" },
+  { iso: "DJ", name: "Djibouti", dial: "+253" },
+  { iso: "DM", name: "Dominica", dial: "+1767" },
+  { iso: "DO", name: "Dominican Republic", dial: "+1809" },
+  { iso: "EC", name: "Ecuador", dial: "+593" },
+  { iso: "EG", name: "Egypt", dial: "+20" },
+  { iso: "SV", name: "El Salvador", dial: "+503" },
+  { iso: "GQ", name: "Equatorial Guinea", dial: "+240" },
+  { iso: "ER", name: "Eritrea", dial: "+291" },
+  { iso: "EE", name: "Estonia", dial: "+372" },
+  { iso: "SZ", name: "Eswatini", dial: "+268" },
+  { iso: "ET", name: "Ethiopia", dial: "+251" },
+  { iso: "FK", name: "Falkland Islands", dial: "+500" },
+  { iso: "FO", name: "Faroe Islands", dial: "+298" },
+  { iso: "FJ", name: "Fiji", dial: "+679" },
+  { iso: "FI", name: "Finland", dial: "+358" },
+  { iso: "FR", name: "France", dial: "+33" },
+  { iso: "GF", name: "French Guiana", dial: "+594" },
+  { iso: "PF", name: "French Polynesia", dial: "+689" },
+  { iso: "GA", name: "Gabon", dial: "+241" },
+  { iso: "GM", name: "Gambia", dial: "+220" },
+  { iso: "GE", name: "Georgia", dial: "+995" },
+  { iso: "DE", name: "Germany", dial: "+49" },
+  { iso: "GH", name: "Ghana", dial: "+233" },
+  { iso: "GI", name: "Gibraltar", dial: "+350" },
+  { iso: "GR", name: "Greece", dial: "+30" },
+  { iso: "GL", name: "Greenland", dial: "+299" },
+  { iso: "GD", name: "Grenada", dial: "+1473" },
+  { iso: "GP", name: "Guadeloupe", dial: "+590" },
+  { iso: "GU", name: "Guam", dial: "+1671" },
+  { iso: "GT", name: "Guatemala", dial: "+502" },
+  { iso: "GN", name: "Guinea", dial: "+224" },
+  { iso: "GW", name: "Guinea-Bissau", dial: "+245" },
+  { iso: "GY", name: "Guyana", dial: "+592" },
+  { iso: "HT", name: "Haiti", dial: "+509" },
+  { iso: "HN", name: "Honduras", dial: "+504" },
+  { iso: "HK", name: "Hong Kong", dial: "+852" },
+  { iso: "HU", name: "Hungary", dial: "+36" },
+  { iso: "IS", name: "Iceland", dial: "+354" },
+  { iso: "IN", name: "India", dial: "+91" },
+  { iso: "ID", name: "Indonesia", dial: "+62" },
+  { iso: "IR", name: "Iran", dial: "+98" },
+  { iso: "IQ", name: "Iraq", dial: "+964" },
+  { iso: "IE", name: "Ireland", dial: "+353" },
+  { iso: "IL", name: "Israel", dial: "+972" },
+  { iso: "IT", name: "Italy", dial: "+39" },
+  { iso: "CI", name: "Ivory Coast", dial: "+225" },
+  { iso: "JM", name: "Jamaica", dial: "+1876" },
+  { iso: "JP", name: "Japan", dial: "+81" },
+  { iso: "JO", name: "Jordan", dial: "+962" },
+  { iso: "KZ", name: "Kazakhstan", dial: "+7" },
+  { iso: "KE", name: "Kenya", dial: "+254" },
+  { iso: "KI", name: "Kiribati", dial: "+686" },
+  { iso: "XK", name: "Kosovo", dial: "+383" },
+  { iso: "KW", name: "Kuwait", dial: "+965" },
+  { iso: "KG", name: "Kyrgyzstan", dial: "+996" },
+  { iso: "LA", name: "Laos", dial: "+856" },
+  { iso: "LV", name: "Latvia", dial: "+371" },
+  { iso: "LB", name: "Lebanon", dial: "+961" },
+  { iso: "LS", name: "Lesotho", dial: "+266" },
+  { iso: "LR", name: "Liberia", dial: "+231" },
+  { iso: "LY", name: "Libya", dial: "+218" },
+  { iso: "LI", name: "Liechtenstein", dial: "+423" },
+  { iso: "LT", name: "Lithuania", dial: "+370" },
+  { iso: "LU", name: "Luxembourg", dial: "+352" },
+  { iso: "MO", name: "Macau", dial: "+853" },
+  { iso: "MG", name: "Madagascar", dial: "+261" },
+  { iso: "MW", name: "Malawi", dial: "+265" },
+  { iso: "MY", name: "Malaysia", dial: "+60" },
+  { iso: "MV", name: "Maldives", dial: "+960" },
+  { iso: "ML", name: "Mali", dial: "+223" },
+  { iso: "MT", name: "Malta", dial: "+356" },
+  { iso: "MH", name: "Marshall Islands", dial: "+692" },
+  { iso: "MQ", name: "Martinique", dial: "+596" },
+  { iso: "MR", name: "Mauritania", dial: "+222" },
+  { iso: "MU", name: "Mauritius", dial: "+230" },
+  { iso: "MX", name: "Mexico", dial: "+52" },
+  { iso: "FM", name: "Micronesia", dial: "+691" },
+  { iso: "MD", name: "Moldova", dial: "+373" },
+  { iso: "MC", name: "Monaco", dial: "+377" },
+  { iso: "MN", name: "Mongolia", dial: "+976" },
+  { iso: "ME", name: "Montenegro", dial: "+382" },
+  { iso: "MS", name: "Montserrat", dial: "+1664" },
+  { iso: "MA", name: "Morocco", dial: "+212" },
+  { iso: "MZ", name: "Mozambique", dial: "+258" },
+  { iso: "MM", name: "Myanmar", dial: "+95" },
+  { iso: "NA", name: "Namibia", dial: "+264" },
+  { iso: "NR", name: "Nauru", dial: "+674" },
+  { iso: "NP", name: "Nepal", dial: "+977" },
+  { iso: "NL", name: "Netherlands", dial: "+31" },
+  { iso: "NC", name: "New Caledonia", dial: "+687" },
+  { iso: "NZ", name: "New Zealand", dial: "+64" },
+  { iso: "NI", name: "Nicaragua", dial: "+505" },
+  { iso: "NE", name: "Niger", dial: "+227" },
+  { iso: "NG", name: "Nigeria", dial: "+234" },
+  { iso: "NU", name: "Niue", dial: "+683" },
+  { iso: "NF", name: "Norfolk Island", dial: "+672" },
+  { iso: "KP", name: "North Korea", dial: "+850" },
+  { iso: "MK", name: "North Macedonia", dial: "+389" },
+  { iso: "MP", name: "Northern Mariana Islands", dial: "+1670" },
+  { iso: "NO", name: "Norway", dial: "+47" },
+  { iso: "OM", name: "Oman", dial: "+968" },
+  { iso: "PK", name: "Pakistan", dial: "+92" },
+  { iso: "PW", name: "Palau", dial: "+680" },
+  { iso: "PS", name: "Palestine", dial: "+970" },
+  { iso: "PA", name: "Panama", dial: "+507" },
+  { iso: "PG", name: "Papua New Guinea", dial: "+675" },
+  { iso: "PY", name: "Paraguay", dial: "+595" },
+  { iso: "PE", name: "Peru", dial: "+51" },
+  { iso: "PH", name: "Philippines", dial: "+63" },
+  { iso: "PL", name: "Poland", dial: "+48" },
+  { iso: "PT", name: "Portugal", dial: "+351" },
+  { iso: "PR", name: "Puerto Rico", dial: "+1787" },
+  { iso: "QA", name: "Qatar", dial: "+974" },
+  { iso: "RE", name: "Réunion", dial: "+262" },
+  { iso: "RO", name: "Romania", dial: "+40" },
+  { iso: "RU", name: "Russia", dial: "+7" },
+  { iso: "RW", name: "Rwanda", dial: "+250" },
+  { iso: "WS", name: "Samoa", dial: "+685" },
+  { iso: "SM", name: "San Marino", dial: "+378" },
+  { iso: "ST", name: "São Tomé and Príncipe", dial: "+239" },
+  { iso: "SA", name: "Saudi Arabia", dial: "+966" },
+  { iso: "SN", name: "Senegal", dial: "+221" },
+  { iso: "RS", name: "Serbia", dial: "+381" },
+  { iso: "SC", name: "Seychelles", dial: "+248" },
+  { iso: "SL", name: "Sierra Leone", dial: "+232" },
+  { iso: "SG", name: "Singapore", dial: "+65" },
+  { iso: "SK", name: "Slovakia", dial: "+421" },
+  { iso: "SI", name: "Slovenia", dial: "+386" },
+  { iso: "SB", name: "Solomon Islands", dial: "+677" },
+  { iso: "SO", name: "Somalia", dial: "+252" },
+  { iso: "ZA", name: "South Africa", dial: "+27" },
+  { iso: "KR", name: "South Korea", dial: "+82" },
+  { iso: "SS", name: "South Sudan", dial: "+211" },
+  { iso: "ES", name: "Spain", dial: "+34" },
+  { iso: "LK", name: "Sri Lanka", dial: "+94" },
+  { iso: "SD", name: "Sudan", dial: "+249" },
+  { iso: "SR", name: "Suriname", dial: "+597" },
+  { iso: "SE", name: "Sweden", dial: "+46" },
+  { iso: "CH", name: "Switzerland", dial: "+41" },
+  { iso: "SY", name: "Syria", dial: "+963" },
+  { iso: "TW", name: "Taiwan", dial: "+886" },
+  { iso: "TJ", name: "Tajikistan", dial: "+992" },
+  { iso: "TZ", name: "Tanzania", dial: "+255" },
+  { iso: "TH", name: "Thailand", dial: "+66" },
+  { iso: "TL", name: "Timor-Leste", dial: "+670" },
+  { iso: "TG", name: "Togo", dial: "+228" },
+  { iso: "TO", name: "Tonga", dial: "+676" },
+  { iso: "TT", name: "Trinidad and Tobago", dial: "+1868" },
+  { iso: "TN", name: "Tunisia", dial: "+216" },
+  { iso: "TR", name: "Turkey", dial: "+90" },
+  { iso: "TM", name: "Turkmenistan", dial: "+993" },
+  { iso: "TC", name: "Turks and Caicos Islands", dial: "+1649" },
+  { iso: "TV", name: "Tuvalu", dial: "+688" },
+  { iso: "UG", name: "Uganda", dial: "+256" },
+  { iso: "UA", name: "Ukraine", dial: "+380" },
+  { iso: "AE", name: "United Arab Emirates", dial: "+971" },
+  { iso: "GB", name: "United Kingdom", dial: "+44" },
+  { iso: "US", name: "United States", dial: "+1" },
+  { iso: "UY", name: "Uruguay", dial: "+598" },
+  { iso: "UZ", name: "Uzbekistan", dial: "+998" },
+  { iso: "VU", name: "Vanuatu", dial: "+678" },
+  { iso: "VA", name: "Vatican City", dial: "+379" },
+  { iso: "VE", name: "Venezuela", dial: "+58" },
+  { iso: "VN", name: "Vietnam", dial: "+84" },
+  { iso: "VG", name: "British Virgin Islands", dial: "+1284" },
+  { iso: "VI", name: "U.S. Virgin Islands", dial: "+1340" },
+  { iso: "YE", name: "Yemen", dial: "+967" },
+  { iso: "ZM", name: "Zambia", dial: "+260" },
+  { iso: "ZW", name: "Zimbabwe", dial: "+263" },
+].sort((a, b) => a.name.localeCompare(b.name));
+
+// Small styled chip showing the ISO code. Flag emoji rendering is inconsistent
+// across OSes (Windows in particular falls back to plain letters), so a
+// deliberately-styled chip looks intentional everywhere instead of looking
+// like a broken emoji.
+function CountryChip({ iso }) {
+  return (
+    <span
+      className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded-md
+                 bg-teal-50 px-1 text-[10px] font-bold tracking-wide text-teal-700"
+    >
+      {iso}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Small UI helpers
 // ---------------------------------------------------------------------------
 
 function ProgressBar({ stepIndex, total }) {
   const pct = (stepIndex / (total - 1)) * 100;
   return (
-    <div className="h-1.5 w-full rounded-full bg-stone-200 overflow-hidden">
-      <div
-        className="h-full rounded-full bg-teal-600 transition-all duration-500 ease-out"
-        style={{ width: `${pct}%` }}
-      />
+    <div className="flex flex-1 items-center gap-3">
+      <div className="h-1.5 flex-1 rounded-full bg-stone-200 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-teal-600 transition-all duration-500 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">
+        {stepIndex + 1}/{total}
+      </span>
     </div>
   );
 }
@@ -144,13 +394,31 @@ function TextField({ value, onChange, type = "text", placeholder, autoFocus, inp
 }
 
 function NumberField({ value, onChange, unit, placeholder, autoFocus, min, max, step = 1 }) {
+  function bump(delta) {
+    const current = Number(value || placeholder || min || 0);
+    const next = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, current + delta));
+    onChange(String(next));
+  }
+
   return (
-    <label className="block">
-      <div
-        className="flex items-baseline gap-2 rounded-2xl border border-stone-200 bg-white
-                   px-5 py-4 shadow-sm transition focus-within:border-teal-500
-                   focus-within:ring-2 focus-within:ring-teal-100"
+    <div
+      className="flex items-center gap-1 rounded-2xl border border-stone-200 bg-white
+                 p-1.5 shadow-sm transition focus-within:border-teal-500
+                 focus-within:ring-2 focus-within:ring-teal-100"
+    >
+      <button
+        type="button"
+        onClick={() => bump(-step)}
+        aria-label={`Decrease ${unit}`}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-50
+                   text-stone-500 transition hover:bg-teal-50 hover:text-teal-700 active:scale-95"
       >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      <label className="flex flex-1 items-baseline justify-center gap-2 px-1">
         <input
           type="text"
           inputMode="numeric"
@@ -162,12 +430,184 @@ function NumberField({ value, onChange, unit, placeholder, autoFocus, min, max, 
             const digits = e.target.value.replace(/[^0-9]/g, "");
             onChange(digits);
           }}
-          className="w-full min-w-0 bg-transparent text-3xl font-extrabold tracking-tight text-stone-900
-                     outline-none placeholder:text-stone-300"
+          className="w-full min-w-0 bg-transparent text-center text-3xl font-extrabold tracking-tight
+                     text-stone-900 outline-none placeholder:text-stone-300"
         />
         <span className="shrink-0 text-sm font-medium text-stone-400">{unit}</span>
-      </div>
-    </label>
+      </label>
+
+      <button
+        type="button"
+        onClick={() => bump(step)}
+        aria-label={`Increase ${unit}`}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-stone-50
+                   text-stone-500 transition hover:bg-teal-50 hover:text-teal-700 active:scale-95"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+const DROPDOWN_WIDTH = 288; // px, keep in sync with the w-72 panel below
+const DROPDOWN_MAX_HEIGHT = 320; // px
+
+// Country-code picker: a button showing the ISO chip + dial code that opens a
+// searchable list. Pass the selected ISO code and get the ISO code back.
+//
+// The panel uses position:fixed with coordinates computed from the button's
+// own bounding box, instead of position:absolute. That's deliberate: the
+// button lives inside a card with overflow-y-auto (the "step" container),
+// and an absolutely-positioned dropdown gets clipped the moment it crosses
+// that ancestor's edge — that was the cut-off/overflow glitch from before.
+// Fixed positioning is relative to the viewport, so it escapes an ancestor's
+// overflow clipping without needing a portal (no react-dom dependency, no
+// document.body — just plain React, safe in any rendering setup).
+function CountryCodeSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [coords, setCoords] = useState(null);
+  const buttonRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const selected = COUNTRY_CODES.find((c) => c.iso === value) ?? COUNTRY_CODES.find((c) => c.iso === "US");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRY_CODES;
+    return COUNTRY_CODES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.dial.replace("+", "").includes(q.replace("+", ""))
+    );
+  }, [query]);
+
+  // Recompute where the panel should sit, flipping above the button if there
+  // isn't enough room below, and keeping it inside the viewport horizontally.
+  const positionPanel = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < DROPDOWN_MAX_HEIGHT + 12 && rect.top > spaceBelow;
+    const left = Math.min(rect.left, window.innerWidth - DROPDOWN_WIDTH - 12);
+    setCoords({
+      left: Math.max(12, left),
+      top: openUpward ? undefined : rect.bottom + 8,
+      bottom: openUpward ? window.innerHeight - rect.top + 8 : undefined,
+      maxHeight: openUpward ? rect.top - 20 : window.innerHeight - rect.bottom - 20,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (open) positionPanel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e) {
+      if (
+        buttonRef.current?.contains(e.target) ||
+        panelRef.current?.contains(e.target)
+      ) {
+        return;
+      }
+      setOpen(false);
+      setQuery("");
+    }
+    function onScrollOrResize() {
+      positionPanel();
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={buttonRef}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-full shrink-0 items-center gap-1.5 rounded-xl border border-stone-200
+                   bg-stone-50 px-3 py-3.5 text-sm font-semibold text-stone-900 transition hover:bg-stone-100"
+        aria-label="Select country code"
+        aria-expanded={open}
+      >
+        <CountryChip iso={selected.iso} />
+        <span>{selected.dial}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-stone-400">
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && coords && (
+        <div
+          ref={panelRef}
+          style={{
+            position: "fixed",
+            left: coords.left,
+            top: coords.top,
+            bottom: coords.bottom,
+            width: DROPDOWN_WIDTH,
+            maxHeight: DROPDOWN_MAX_HEIGHT,
+          }}
+          className="z-[60] flex flex-col overflow-hidden rounded-2xl border border-stone-200
+                     bg-white shadow-xl shadow-stone-300/40"
+        >
+          <div className="shrink-0 border-b border-stone-100 p-2">
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search country or code"
+              className="w-full rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-900
+                         outline-none placeholder:text-stone-400"
+            />
+          </div>
+          <ul
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: Math.min(DROPDOWN_MAX_HEIGHT, coords.maxHeight ?? DROPDOWN_MAX_HEIGHT) - 52 }}
+          >
+            {filtered.length === 0 && (
+              <li className="px-4 py-3 text-sm text-stone-400">No matches</li>
+            )}
+            {filtered.map((c) => (
+              <li key={c.iso}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(c.iso);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm transition
+                    hover:bg-stone-50 ${c.iso === selected.iso ? "bg-teal-50 font-semibold text-teal-700" : "text-stone-700"}`}
+                >
+                  <CountryChip iso={c.iso} />
+                  <span className="flex-1 truncate">{c.name}</span>
+                  <span className="shrink-0 text-stone-400">{c.dial}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -182,6 +622,7 @@ export default function BodyAssessmentForm() {
     gender: "",
     name: "",
     email: "",
+    phoneCountry: "US",
     phone: "",
     weightKg: "",
     heightCm: "",
@@ -258,9 +699,11 @@ export default function BodyAssessmentForm() {
               name={data.name}
               email={data.email}
               phone={data.phone}
+              phoneCountry={data.phoneCountry}
               onChangeName={(v) => set("name", v)}
               onChangeEmail={(v) => set("email", v)}
               onChangePhone={(v) => set("phone", v)}
+              onChangePhoneCountry={(v) => set("phoneCountry", v)}
             />
           )}
 
@@ -284,10 +727,18 @@ export default function BodyAssessmentForm() {
               type="button"
               onClick={goNext}
               disabled={!canAdvance}
-              className="w-full rounded-2xl bg-teal-600 py-3.5 text-center text-base font-bold text-white transition
-                         hover:bg-teal-700 disabled:bg-stone-200 disabled:text-stone-400 active:scale-[0.98]"
+              className="group flex w-full items-center justify-center gap-2 rounded-full bg-teal-600
+                         py-3.5 text-center text-base font-bold text-white shadow-lg shadow-teal-600/20
+                         transition hover:bg-teal-700 hover:shadow-teal-600/30 disabled:bg-stone-200
+                         disabled:text-stone-400 disabled:shadow-none active:scale-[0.98]"
             >
               Continue
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                className="transition group-hover:translate-x-0.5"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
         )}
@@ -345,18 +796,20 @@ function StepGender({ value, onChange }) {
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className="group relative h-32 w-full text-left transition active:scale-[0.99] sm:h-36"
+              className="group relative h-36 w-full text-left transition active:scale-[0.99] sm:h-40"
             >
               {/* Card background — this is the only element that clips, so the border stays a clean rounded rect */}
               <div
-                className={`absolute inset-0 rounded-2xl border bg-white shadow-sm transition
-                  ${selected ? "border-teal-500 ring-2 ring-teal-100" : "border-stone-200 group-hover:border-stone-300"}
+                className={`absolute inset-0 rounded-2xl border shadow-sm transition
+                  ${selected ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100" : "border-stone-200 bg-white group-hover:border-stone-300"}
                 `}
               />
 
               {/* Label */}
               <div className="relative z-10 flex h-full w-1/2 flex-col justify-end p-4">
-                <span className="text-base font-bold text-stone-900">{opt.label}</span>
+                <span className={`text-base font-bold ${selected ? "text-teal-900" : "text-stone-900"}`}>
+                  {opt.label}
+                </span>
               </div>
 
               {/* Image — sits outside the card's clip box, so the head bleeds above the top edge */}
@@ -369,8 +822,8 @@ function StepGender({ value, onChange }) {
 
               {/* Selected check badge */}
               {selected && (
-                <span className="absolute left-4 top-4 z-30 flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 shadow">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <span className="absolute left-4 top-4 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-teal-600 shadow-md shadow-teal-600/30">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                     <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
@@ -383,7 +836,16 @@ function StepGender({ value, onChange }) {
   );
 }
 
-function StepContact({ name, email, phone, onChangeName, onChangeEmail, onChangePhone }) {
+function StepContact({
+  name,
+  email,
+  phone,
+  phoneCountry,
+  onChangeName,
+  onChangeEmail,
+  onChangePhone,
+  onChangePhoneCountry,
+}) {
   return (
     <div className="flex flex-col">
       <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
@@ -408,13 +870,25 @@ function StepContact({ name, email, phone, onChangeName, onChangeEmail, onChange
           inputMode="email"
           placeholder="Email address"
         />
-        <TextField
-          value={phone}
-          onChange={(v) => onChangePhone(v.replace(/[^0-9+\s-]/g, ""))}
-          type="tel"
-          inputMode="tel"
-          placeholder="Phone number"
-        />
+
+        {/* Phone: country-code dropdown + national number, same field styling as TextField */}
+        <div
+          className="flex items-center gap-2 rounded-2xl border border-stone-200 bg-white
+                     p-1.5 shadow-sm transition focus-within:border-teal-500
+                     focus-within:ring-2 focus-within:ring-teal-100"
+        >
+          <CountryCodeSelect value={phoneCountry} onChange={onChangePhoneCountry} />
+          <div className="h-6 w-px shrink-0 bg-stone-200" />
+          <input
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            placeholder="Phone number"
+            onChange={(e) => onChangePhone(e.target.value.replace(/[^0-9\s-]/g, ""))}
+            className="w-full min-w-0 bg-transparent px-1 py-2 text-lg font-semibold tracking-tight
+                       text-stone-900 outline-none placeholder:font-normal placeholder:text-stone-300"
+          />
+        </div>
       </div>
     </div>
   );
@@ -516,10 +990,10 @@ function StepResult({ bmi, bodyType, gender }) {
 
       {/* BMI gauge */}
       <div className="mt-6 w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-sky-400 via-emerald-400 via-40% to-red-400">
+        <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-500 via-40% to-red-500">
           <div
-            className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white bg-stone-900 shadow"
-            style={{ left: `${markerPct}%` }}
+            className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white shadow"
+            style={{ left: `${markerPct}%`, backgroundColor: bodyType.accent }}
           />
         </div>
         <div className="mt-3 flex justify-between text-[11px] font-medium text-stone-400 sm:text-xs">
@@ -533,10 +1007,17 @@ function StepResult({ bmi, bodyType, gender }) {
       <div className="mt-6 w-full">
         <button
           type="button"
-          className="w-full rounded-2xl bg-teal-600 py-3.5 text-center text-base font-bold text-white
-                     transition hover:bg-teal-700 active:scale-[0.98]"
+          className="group flex w-full items-center justify-center gap-2 rounded-full bg-teal-600
+                     py-3.5 text-center text-base font-bold text-white shadow-lg shadow-teal-600/20
+                     transition hover:bg-teal-700 hover:shadow-teal-600/30 active:scale-[0.98]"
         >
           Get my plan
+          <svg
+            width="16" height="16" viewBox="0 0 24 24" fill="none"
+            className="transition group-hover:translate-x-0.5"
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </div>

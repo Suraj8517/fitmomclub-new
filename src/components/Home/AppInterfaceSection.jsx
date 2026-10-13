@@ -1,17 +1,24 @@
-import { useEffect, useRef, forwardRef } from "react";
+import { useLayoutEffect, useRef, forwardRef } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import logo from "../../assets/home/fitmom.png";
 import phoneFrame from "../../assets/home/mockup.png";
 // NOTE: point this at your actual mockup screenshot asset
 import mockupImage from "../../assets/home/mockup.png";
 
+gsap.registerPlugin(ScrollTrigger);
+
 // ── Scroll section height ────────────────────────────────────────────────────
-const SCROLL_LENGTH_VH = 250;
+// A little longer than before so each phase (spread → grid → implode → reveal)
+// gets more scroll distance and feels less rushed.
+const SCROLL_LENGTH_VH = 300;
 
-// ── Spring constants ─────────────────────────────────────────────────────────
-const SCROLL_SPRING = 7.5;   // exponential decay coefficient for scroll progress
-const ENTRY_SPRING  = 6.0;   // exponential decay coefficient for entry progress
+// ── Scrub smoothing (seconds the visuals take to catch up with the scrollbar) ─
+// Replaces the old hand-rolled RAF spring. Higher = silkier / laggier.
+const SCROLL_SCRUB = 1.1;
+const ENTRY_SCRUB  = 0.8;
 
-// ── Grid layout constants (UNCHANGED from file 1, except GAP split) ─────────
+// ── Grid layout constants ────────────────────────────────────────────────────
 const GRID_W  = 580;
 const GRID_H  = 780;
 const PAD     = 24;
@@ -35,29 +42,20 @@ const TOP_PAD = Math.floor(
 
 const DESIGN_W = 390;
 
-// ── Phone frame — simple static sizing, no measurement/canvas work ─────────
-const PHONE_FRAME_MAX_H = 1040;
+// ── Phone frame ──────────────────────────────────────────────────────────────
 const PHONE_FADE_START  = 0.82;
 const PHONE_FADE_END    = 0.98;
 
-// ── Mobile UI screen — pure CSS, no image asset. Sized to match the card
-// grid exactly (GRID_W × GRID_H) so all cards land inside its bezel with
-// the same padding as the design grid. Fades in once the logo band has
-// fully faded out, so the floating cards have a "home" to rest on as they
-// lock into place.
-const MOBILE_UI_MAX_H      = 980; // was GRID_H (680) — increase this to make the mockup bigger
-const MOBILE_UI_ASPECT     = GRID_W / GRID_H;
-const MOBILE_UI_FADE_START = 0.58; // logo band opacity reaches 0 at p ≈ 0.56 (see bandOpacity below)
-const MOBILE_UI_FADE_END   = 0.82; // finishes just as the phone frame bezel starts fading in
+// ── Mobile UI screen fade ────────────────────────────────────────────────────
+const MOBILE_UI_FADE_START = 0.58;
+const MOBILE_UI_FADE_END   = 0.82;
 
 // ── Final phase: "implode → flash → iris reveal" transition ────────────────
-// Cards individually collapse toward center (staggered, blurred), a soft
-// radial flash sells the "snap", then the mockup image irises into focus.
 const IMPLODE_START      = 0.80;  // when the first card begins collapsing
 const IMPLODE_END        = 0.95;  // when the first card finishes collapsing
 const IMPLODE_STAGGER    = 0.012; // per-card delay (in `p` units), keyed to card order
 const IMPLODE_BLUR_PX    = 14;    // max blur applied to a card mid-implode
-const IMPLODE_PULL       = 0.65;  // fraction cards get pulled toward center (0 = no pull, 1 = fully centered)
+const IMPLODE_PULL       = 0.65;  // fraction cards get pulled toward center
 
 const FLASH_CENTER       = 0.92;  // where in scroll progress the flash peaks
 const FLASH_HALF_WIDTH   = 0.05;  // bell-curve width around FLASH_CENTER
@@ -71,9 +69,7 @@ const REVEAL_BLUR_PX     = 10;    // mockup starts this blurred, resolves to sha
 const lerp = (a, b, t) => a + (b - a) * t;
 const fmt  = (n) => Math.round(n).toLocaleString();
 
-/**
- * Smootherstep (Ken Perlin) easing — unchanged from file 1.
- */
+/** Smootherstep (Ken Perlin) easing. */
 function ease(t) {
   const c = Math.min(Math.max(t, 0), 1);
   return c * c * c * (c * (c * 6 - 15) + 10);
@@ -99,7 +95,7 @@ function IconBadge({ bg, color, children, size = 28, live = false }) {
   );
 }
 
-// Marker slides via ref (imperative, RAF-driven — avoids React re-render churn)
+// Marker slides via ref (imperative — avoids React re-render churn)
 const GradientBar = forwardRef(function GradientBar({ initialValue = 0 }, ref) {
   return (
     <div className="relative w-full h-1.5 rounded-full bg-neutral-800 overflow-visible">
@@ -159,21 +155,11 @@ const RING_CIRC = 2 * Math.PI * 17;
 
 export default function AppInterfaceSection() {
   const wrapperRef = useRef(null);
-
-  // ── All animation state lives in refs (unchanged from file 1) ─────────────
-  const progressRef      = useRef(0);
-  const entryProgressRef = useRef(0);
-  const targetRef        = useRef(0);
-  const entryTargetRef   = useRef(0);
-  const scaleRef         = useRef(1);
-  const isMobileRef      = useRef(
-    typeof window !== "undefined" && window.innerWidth < 480
-  );
-  const rafRef      = useRef(null);
-  const lastTimeRef = useRef(null);
+  const scaleRef   = useRef(1);
 
   const scalerRef     = useRef(null);
   const bandRef       = useRef(null);
+  const logoRef       = useRef(null);
   const cardRefs      = useRef({});
   const phoneFrameRef = useRef(null);
   const mobileUIRef   = useRef(null);
@@ -184,9 +170,9 @@ export default function AppInterfaceSection() {
   const flashRef       = useRef(null);
 
   // ── Dynamic text / visual nodes for the dark cards ─────────────────────────
-  const weightNodeRef     = useRef(null); // "Weight" card kg value
-  const sleepHoursNodeRef = useRef(null); // "Sleep" card hr value
-  const emotionalNodeRef  = useRef(null); // "Emotional" card status text
+  const weightNodeRef     = useRef(null);
+  const sleepHoursNodeRef = useRef(null);
+  const emotionalNodeRef  = useRef(null);
 
   const calorieIntakeRef  = useRef(null);
   const workoutBurnRef    = useRef(null);
@@ -195,12 +181,12 @@ export default function AppInterfaceSection() {
   const whrValueRef       = useRef(null);
   const bmiValueRef       = useRef(null);
 
-  const ringRefs         = useRef([]); // 3 <circle> refs for calorie rings
+  const ringRefs         = useRef([]);
   const weightBarRef     = useRef(null);
   const whrBarRef        = useRef(null);
   const sleepGoalBarRef  = useRef(null);
 
-  // ── LAYOUT CONSTANTS derived from grid (unchanged, using split gaps) ───────
+  // ── LAYOUT CONSTANTS derived from grid ─────────────────────────────────────
   const row2Y  = TOP_PAD + PHOTO_H + ROW_GAP;
   const row3Y  = row2Y + ROW2_H + ROW_GAP;
   const medY   = row3Y + ROW3_H + ROW_GAP;
@@ -247,7 +233,7 @@ export default function AppInterfaceSection() {
     sleepPill: { x:  255, y:  -75 },
     heart:     { x: -260, y:  200 },
     run:       { x:  240, y:  130 },
-    med:       { x:   110, y:  310 },
+    med:       { x:   110, y: 310 },
   };
 
   const FINAL_SIZES = {
@@ -272,49 +258,72 @@ export default function AppInterfaceSection() {
     med:       { w: 300, h: 52  },
   };
 
-  useEffect(() => {
+  // ─── GSAP ScrollTrigger scrub (replaces the old RAF + spring loop) ─────────
+  // Two scrubbed tweens drive a tiny state object:
+  //   state.entry  0→1 as the section rises into the viewport
+  //   state.p      0→1 across the pinned scroll length
+  // render() paints everything from those two numbers. It only runs when the
+  // scrub moves, so there's no idle per-frame loop.
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return undefined;
+
+    const state  = { p: 0, entry: 0 };
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const KEYS   = ["yoga","sleep","steps","ready","sleepPill","heart","run","med"];
+
+    // Logo entrance — tied to how far the stage has risen (state.entry), not to
+    // a separate trigger, so it always plays while the logo is actually on
+    // screen. It never touches opacity, so the logo can't end up hidden.
+    const LOGO_IN  = 0.5;  // play once the stage is this far up
+    const LOGO_OUT = 0.25; // reset once it has dropped back below this
+    const logoEl   = logoRef.current;
+    let logoTl     = null;
+    let logoPlayed = false;
+
+    const logoFrom = { scale: 0.6, y: 36, filter: "blur(10px)" };
+    const resetLogo = () => {
+      logoTl?.kill();
+      logoTl = null;
+      if (logoEl) gsap.set(logoEl, logoFrom);
+    };
+    const playLogo = () => {
+      if (!logoEl) return;
+      logoTl?.kill();
+      gsap.set(logoEl, logoFrom);
+      logoTl = gsap.to(logoEl, {
+        scale: 1,
+        y: 0,
+        filter: "blur(0px)",
+        duration: 1.2,
+        ease: "back.out(1.6)",
+        clearProps: "filter",
+      });
+    };
+    const updateLogo = () => {
+      if (reduce || !logoEl) return;
+      if (!logoPlayed && state.entry >= LOGO_IN) {
+        logoPlayed = true;
+        playLogo();
+      } else if (logoPlayed && state.entry < LOGO_OUT) {
+        logoPlayed = false;
+        resetLogo();
+      }
+    };
+
     const computeScale = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const s  = Math.min(vw / (GRID_W + 32), vh / (GRID_H + 32), 1);
-      scaleRef.current = s;
-      if (scalerRef.current) {
-        scalerRef.current.style.transform = `scale(${s})`;
-      }
+      scaleRef.current = Math.min(vw / (GRID_W + 32), vh / (GRID_H + 32), 1);
     };
 
-    const updateTarget = () => {
-      const el = wrapperRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const vh   = window.innerHeight;
+    const render = () => {
+      updateLogo();
+      const easedEntry = ease(state.entry);
+      const p          = ease(state.p);
+      const vh         = window.innerHeight;
 
-      entryTargetRef.current = Math.min(Math.max((vh - rect.top) / vh, 0), 1);
-
-      const total = el.offsetHeight - vh;
-      if (total > 0) {
-        targetRef.current = Math.min(Math.max(-rect.top, 0), total) / total;
-      }
-    };
-
-    const KEYS = ["yoga","sleep","steps","ready","sleepPill","heart","run","med"];
-
-    const tick = (time) => {
-      if (lastTimeRef.current == null) lastTimeRef.current = time;
-      const dt = Math.min((time - lastTimeRef.current) / 1000, 1 / 30);
-      lastTimeRef.current = time;
-
-      const entryAlpha  = 1 - Math.exp(-ENTRY_SPRING * dt);
-      const scrollAlpha = 1 - Math.exp(-SCROLL_SPRING * dt);
-
-      entryProgressRef.current +=
-        (entryTargetRef.current - entryProgressRef.current) * entryAlpha;
-      progressRef.current +=
-        (targetRef.current - progressRef.current) * scrollAlpha;
-
-      const easedEntry = ease(entryProgressRef.current);
-      const p          = ease(progressRef.current);
-
+      // ── Logo band: shrinks + fades out as the grid forms ─────────────────
       if (bandRef.current) {
         const bandScale   = lerp(1, 0.35, p);
         const bandOpacity = Math.max(0, lerp(1, 0, Math.min(p * 1.8, 1)));
@@ -322,7 +331,7 @@ export default function AppInterfaceSection() {
         bandRef.current.style.opacity   = bandOpacity;
       }
 
-      const vh    = window.innerHeight;
+      // ── Whole stage rises in from below ──────────────────────────────────
       const riseY = (1 - easedEntry) * (vh || 800);
       if (scalerRef.current) {
         scalerRef.current.style.transform =
@@ -330,7 +339,7 @@ export default function AppInterfaceSection() {
       }
 
       const spreadScale = window.innerWidth / DESIGN_W;
-      const S = isMobileRef.current ? S_mobile : S_desktop;
+      const S = window.innerWidth < 480 ? S_mobile : S_desktop;
 
       for (let i = 0; i < KEYS.length; i++) {
         const key  = KEYS[i];
@@ -380,7 +389,7 @@ export default function AppInterfaceSection() {
         phoneFrameRef.current.style.opacity = fadeT;
       }
 
-      // ── Mobile UI screen fade — only once the logo band is fully hidden ──
+      // ── Mobile UI screen fade ─────────────────────────────────────────────
       if (mobileUIRef.current) {
         const uiFadeT = Math.min(
           Math.max((p - MOBILE_UI_FADE_START) / (MOBILE_UI_FADE_END - MOBILE_UI_FADE_START), 0),
@@ -389,8 +398,7 @@ export default function AppInterfaceSection() {
         mobileUIRef.current.style.opacity = uiFadeT;
       }
 
-      // ── Cards group: no longer drives opacity (per-card implode handles
-      // that above) — just kill pointer events once fully imploded ────────
+      // ── Cards group: kill pointer events once fully imploded ──────────────
       if (cardsGroupRef.current) {
         const groupDone = p >= IMPLODE_END + KEYS.length * IMPLODE_STAGGER * 0.5;
         cardsGroupRef.current.style.pointerEvents = groupDone ? "none" : "auto";
@@ -411,14 +419,14 @@ export default function AppInterfaceSection() {
         );
         const t = rt * rt * (3 - 2 * rt); // smoothstep
 
-        const irisPct = lerp(0, 75, t); // % radius, clip-path circle grows from center
+        const irisPct = lerp(0, 75, t);
         mockupImageRef.current.style.opacity   = t < 0.02 ? 0 : 1;
         mockupImageRef.current.style.clipPath  = `circle(${irisPct}% at 50% 50%)`;
         mockupImageRef.current.style.transform = `translate(-50%, -50%) scale(${1.08 - 0.08 * t})`;
         mockupImageRef.current.style.filter    = `blur(${(1 - t) * REVEAL_BLUR_PX}px)`;
       }
 
-      // ── Core stat text values ───────────────────────────────────────────────
+      // ── Core stat text values ─────────────────────────────────────────────
       const weightKg   = lerp(70, 68, p).toFixed(1);
       const sleepHours = Math.round(lerp(6, 8, p));
       const mood       = p > 0.6 ? "Calm" : p > 0.3 ? "Okay" : "Tracking";
@@ -427,7 +435,7 @@ export default function AppInterfaceSection() {
       if (sleepHoursNodeRef.current) sleepHoursNodeRef.current.textContent = sleepHours;
       if (emotionalNodeRef.current)  emotionalNodeRef.current.textContent  = mood;
 
-      // ── Increasing dashboard stats, all driven by scroll progress p ────────
+      // ── Increasing dashboard stats, all driven by scroll progress p ───────
       const calorieIntake = fmt(lerp(0, 1200, p));
       const workoutBurn   = fmt(lerp(0, 500, p));
       const stepsBurn     = fmt(lerp(0, 500, p));
@@ -442,7 +450,7 @@ export default function AppInterfaceSection() {
       if (whrValueRef.current)      whrValueRef.current.textContent      = whrValue;
       if (bmiValueRef.current)      bmiValueRef.current.textContent      = bmiValue;
 
-      // ── Calorie rings fill up as the section scrolls ────────────────────────
+      // ── Calorie rings fill up as the section scrolls ──────────────────────
       const ringTargets = [0.72, 0.5, 0.5];
       ringRefs.current.forEach((circle, i) => {
         if (!circle) return;
@@ -450,35 +458,62 @@ export default function AppInterfaceSection() {
         circle.style.strokeDashoffset = `${RING_CIRC * (1 - pct)}`;
       });
 
-      // ── Gradient bar markers slide into position ────────────────────────────
+      // ── Gradient bar markers slide into position ──────────────────────────
       const weightBarValue = lerp(0, 0.42, p);
       const whrBarValue    = lerp(0, 0.18, p);
       if (weightBarRef.current) weightBarRef.current.style.left = `calc(${weightBarValue * 100}% - 6px)`;
       if (whrBarRef.current)    whrBarRef.current.style.left    = `calc(${whrBarValue * 100}% - 6px)`;
 
-      // ── Sleep goal bar fills 0 → 100% ───────────────────────────────────────
+      // ── Sleep goal bar fills 0 → 100% ─────────────────────────────────────
       if (sleepGoalBarRef.current) {
         sleepGoalBarRef.current.style.width = `${lerp(0, 100, p)}%`;
       }
-
-      rafRef.current = requestAnimationFrame(tick);
     };
 
-    window.addEventListener("scroll", updateTarget, { passive: true });
-    window.addEventListener("resize", () => {
-      updateTarget();
+    // One named handler, so cleanup removes exactly what was added.
+    const onResize = () => {
       computeScale();
-      isMobileRef.current = window.innerWidth < 480;
-    });
+      render();
+    };
+    window.addEventListener("resize", onResize);
 
-    updateTarget();
+    if (!reduce) resetLogo();
     computeScale();
-    rafRef.current = requestAnimationFrame(tick);
+    render(); // first paint: stage parked below the fold, everything at 0
+
+    const ctx = gsap.context(() => {
+      // Entry: stage rises in as the section scrolls up into view.
+      gsap.to(state, {
+        entry: 1,
+        ease: "none",
+        onUpdate: render,
+        scrollTrigger: {
+          trigger: wrapper,
+          start: "top bottom",
+          end: "top top",
+          scrub: reduce ? true : ENTRY_SCRUB,
+        },
+      });
+
+      // Main: the pinned (sticky) scroll length drives everything else.
+      gsap.to(state, {
+        p: 1,
+        ease: "none",
+        onUpdate: render,
+        scrollTrigger: {
+          trigger: wrapper,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: reduce ? true : SCROLL_SCRUB,
+        },
+      });
+    }, wrapper);
 
     return () => {
-      window.removeEventListener("scroll", updateTarget);
-      window.removeEventListener("resize", computeScale);
-      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", onResize);
+      logoTl?.kill();
+      if (logoEl) gsap.set(logoEl, { clearProps: "all" });
+      ctx.revert();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -517,6 +552,7 @@ export default function AppInterfaceSection() {
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
 
+        {/* Single phone frame (the duplicate inside the scaler was removed). */}
         <img
           ref={phoneFrameRef}
           src={phoneFrame}
@@ -545,29 +581,15 @@ export default function AppInterfaceSection() {
               className="absolute pointer-events-none w-[150px] mt:w-[220px] mt:h-[300px]"
               style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
             >
-              <img src={logo} className="w-full h-full object-contain " alt="FitMom logo" />
+              {/* Inner wrapper = GSAP entrance; band above = scroll-driven. */}
+              <div ref={logoRef} className="w-full h-full">
+                <img src={logo} className="w-full h-full object-contain " alt="FitMom logo" />
+              </div>
             </div>
-            <img
-              src={phoneFrame}
-              alt=""
-              aria-hidden="true"
-              onLoad={() => {
-                window.dispatchEvent(new Event("__phoneFrameLoaded"));
-                window.dispatchEvent(new Event("resize"));
-              }}
-              className="pointer-events-none select-none absolute z-0"
-              style={{
-                height: `70vh)`,
-                width: "auto",
-                opacity: 0,
-                transition: "opacity 0.15s linear",
-              }}
-            />
 
-          
             <div ref={cardsGroupRef} style={{ willChange: "opacity" }}>
 
-              {/* ── DAILY CALORIE TRACKER (rings now fill up live) ── */}
+              {/* ── DAILY CALORIE TRACKER (rings fill up live) ── */}
               <CardGPU name="yoga">
                 <div
                   ref={el => { cardRefs.current["yoga_inner"] = el; }}
@@ -591,7 +613,6 @@ export default function AppInterfaceSection() {
                               strokeDasharray={`${RING_CIRC}`}
                               strokeDashoffset={`${RING_CIRC}`}
                               strokeLinecap="round"
-                              style={{ transition: "stroke-dashoffset 0.1s linear" }}
                             />
                           </svg>
                           <span className="absolute inset-0 flex items-center justify-center text-2xl">{ring.emoji}</span>
@@ -627,7 +648,7 @@ export default function AppInterfaceSection() {
                     <div
                       ref={sleepGoalBarRef}
                       className="h-full rounded-full bg-blue-400"
-                      style={{ width: "0%", transition: "width 0.1s linear" }}
+                      style={{ width: "0%" }}
                     />
                   </div>
                   <div className="flex justify-between text-[10px] text-neutral-500">
@@ -735,8 +756,7 @@ export default function AppInterfaceSection() {
             {/* end cardsGroupRef */}
 
             {/* ── FLASH OVERLAY ── soft radial pulse that peaks right before
-                the mockup resolves, sitting between the imploding cards and
-                the mockup image. */}
+                the mockup resolves. */}
             <div
               ref={flashRef}
               aria-hidden="true"
@@ -754,10 +774,8 @@ export default function AppInterfaceSection() {
               }}
             />
 
-            {/* ── FINAL MOCKUP IMAGE ──────────────────────────────────────────
-                Sits at the same centered origin the card grid uses. Starts
-                invisible and clipped to a zero-radius circle; irises open
-                and defocuses to sharp as the cards finish imploding. */}
+            {/* ── FINAL MOCKUP IMAGE ── irises open and defocuses to sharp as
+                the cards finish imploding. */}
             <img
               ref={mockupImageRef}
               src={mockupImage}
