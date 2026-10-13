@@ -81,7 +81,7 @@ export default function Footer() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
       `}</style>
 
-      <div className="mx-auto max-w-[1100px]">
+      <div className="mx-auto max-w-[1300px]">
         {/* ===== CTA card ===== */}
         <section className="overflow-hidden rounded-[32px] bg-white shadow-[0_24px_60px_-24px_rgba(20,20,40,0.18)] ring-1 ring-black/[0.03] md:grid md:grid-cols-2">
           <div className="flex flex-col justify-center px-7 py-10 sm:px-10 sm:py-12 md:py-14">
