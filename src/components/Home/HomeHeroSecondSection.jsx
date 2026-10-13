@@ -9,6 +9,11 @@ gsap.registerPlugin(ScrollTrigger);
 const HEADING = "A Weight Loss Program Designed Just for You";
 const PARALLAX_LAG = 120; // px the section trails behind the scroll
 
+// True on phones / small tablets — animations start earlier and run a bit
+// faster there, so content never scrolls away before its entrance plays.
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+
 export default function HomeHeroSecondSection() {
   const [offsetY, setOffsetY] = useState(0);
   const containerRef = useRef(null);
@@ -71,6 +76,7 @@ export default function HomeHeroSecondSection() {
     if (!root) return undefined;
     const q = gsap.utils.selector(root);
     const mm = gsap.matchMedia();
+    const refreshId = requestAnimationFrame(() => ScrollTrigger.refresh());
 
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       // One orchestrated moment: heading words rise, then copy, then CTA.
@@ -78,7 +84,7 @@ export default function HomeHeroSecondSection() {
         defaults: { ease: "power3.out" },
         scrollTrigger: {
           trigger: root,
-          start: "top 80%",
+          start: () => (isMobile() ? "top 95%" : "top 80%"),
           once: true,
         },
       });
@@ -127,6 +133,8 @@ export default function HomeHeroSecondSection() {
           },
           "-=0.4"
         );
+
+      if (isMobile()) tl.timeScale(1.35);
 
       // Soft glow behind the text drifts slowly — the only ambient motion.
       gsap.to(q("[data-orb]"), {
@@ -178,7 +186,10 @@ export default function HomeHeroSecondSection() {
       }
     );
 
-    return () => mm.revert();
+    return () => {
+      cancelAnimationFrame(refreshId);
+      mm.revert();
+    };
   }, []);
 
   return (

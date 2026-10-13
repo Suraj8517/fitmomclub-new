@@ -10,6 +10,11 @@ import handleConsultation from "../Helper/handleClick";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// True on phones / small tablets — animations start earlier and run a bit
+// faster there, so content never scrolls away before its entrance plays.
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+
 const PREVIEW_COUNT = 4;
 
 const plans = [
@@ -392,6 +397,8 @@ export default function ProgramSection() {
         { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, clearProps: CLEAR },
         ">-0.2"
       );
+
+      if (isMobile()) tl.timeScale(1.3);
     };
 
     const reset = () => {
@@ -409,7 +416,7 @@ export default function ProgramSection() {
 
     const st = ScrollTrigger.create({
       trigger: section,
-      start: "top 75%",
+      start: () => (isMobile() ? "top 92%" : "top 75%"),
       end: "bottom 15%",
       onEnter: play,
       onEnterBack: play,

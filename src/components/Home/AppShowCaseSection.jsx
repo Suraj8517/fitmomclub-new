@@ -11,6 +11,11 @@ import { Link } from "react-router-dom";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// True on phones / small tablets — animations start earlier and run a bit
+// faster there, so content never scrolls away before its entrance plays.
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+
 const CLEAR = "opacity,transform,filter";
 const PARALLAX_SCRUB = 0.8; // seconds the phones take to catch up with the scrollbar
 
@@ -88,6 +93,7 @@ function scrollReplay({ trigger, start, end = "bottom top", targets, hide, build
     tl?.kill();
     hide();
     tl = build();
+    if (isMobile()) tl.timeScale(1.3);
   };
 
   hide();
@@ -117,7 +123,7 @@ function setupHeader(root) {
 
   return scrollReplay({
     trigger: root.querySelector("[data-hdr]"),
-    start: "top 85%",
+    start: () => (isMobile() ? "top 95%" : "top 85%"),
     targets: [...words, ...sub, ...link],
     hide: () => {
       hideWords(words);
@@ -208,7 +214,7 @@ function setupMobileBody(root) {
 
   return scrollReplay({
     trigger: root.querySelector("[data-body]"),
-    start: "top 88%",
+    start: () => (isMobile() ? "top 96%" : "top 88%"),
     targets: sub,
     hide: () => gsap.set(sub, { opacity: 0, y: 24 }),
     build: () =>

@@ -16,6 +16,11 @@ import {
 
 gsap.registerPlugin(ScrollTrigger);
 
+// True on phones / small tablets — animations start earlier and run a bit
+// faster there, so content never scrolls away before its entrance plays.
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+
 const mom ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863501/mother_vfrvcr.webp";
 const wellness="https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/wellness_e74adj.webp"
 const online ="https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/online_bq5yyz.webp"
@@ -233,6 +238,7 @@ function playCard(el, delay = 0) {
       { opacity: 1, y: 0, duration: 0.7, stagger: 0.08, clearProps: CLEAR },
       0.5
     );
+  if (isMobile()) el._tl.timeScale(1.3);
 }
 
 // Cards animate as each one reaches the viewport (rows reveal on their own
@@ -243,7 +249,7 @@ function setupCards(els) {
   els.forEach(hideCard);
 
   const triggers = ScrollTrigger.batch(els, {
-    start: "top 88%",
+    start: () => (isMobile() ? "top 96%" : "top 88%"),
     end: "bottom 12%",
     interval: 0.1,
     batchMax: 4,
@@ -302,6 +308,7 @@ function setupHeader(header) {
         0.1
       )
       .to(q("[data-sub]"), { opacity: 1, y: 0, duration: 0.8, clearProps: CLEAR }, 0.7);
+    if (isMobile()) tl.timeScale(1.3);
   };
 
   const reset = () => {
@@ -313,7 +320,7 @@ function setupHeader(header) {
   hide();
   const st = ScrollTrigger.create({
     trigger: header,
-    start: "top 85%",
+    start: () => (isMobile() ? "top 95%" : "top 85%"),
     end: "bottom 10%",
     onEnter: play,
     onEnterBack: play,

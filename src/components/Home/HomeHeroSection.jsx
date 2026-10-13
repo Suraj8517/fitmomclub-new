@@ -10,14 +10,25 @@ import {
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import hero from "../../assets/home/hero.jpg";
 import RunningSVG from "../Helper/StorySection/RunningSVG";
 import Heart from "../Helper/Heart";
 import ConsultationButton from "../Helper/ConsultationButton";
 
+gsap.registerPlugin(ScrollTrigger);
+
 const BG_IMAGE = hero;
 const SMOOTHING = 7;
 const PILLS_GAP = 28;
+
+// Scroll-driven image growth: the photo starts as an inset rounded card and
+// expands to full-bleed as you scroll through GROW_END of the hero.
+const GROW_END = 0.3;       // scroll progress (0–1) at which the image is full-bleed
+const START_INSET_X = 3;    // % inset on the left/right at scroll 0
+const START_INSET_Y = 6;    // % inset on the top/bottom at scroll 0
+const START_RADIUS = 36;    // px corner radius at scroll 0
+const START_SCALE = 1.08;   // image scale at scroll 0
 
 const BADGE_TEXT = "JOIN THE MOM TRIBE • GET STRONGER • FMC •";
 
@@ -272,8 +283,16 @@ export default function HomeHeroSection() {
   const [progress, setProgress] = useState(0);
   const [vh, setVh] = useState(800);
   const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [scrollLengthVh, setScrollLengthVh] = useState(300);
+  // Initialised from the real viewport (not a desktop default) so the hero is
+  // the right height on the very first layout. Otherwise the page shortens by
+  // 80vh on phones after ScrollTrigger has already measured every section
+  // below it, and their animations fire far too late.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 640
+  );
+  const [scrollLengthVh, setScrollLengthVh] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth < 640 ? 220 : 300
+  );
 
   const rawBadgeId = useId();
   const badgeId = `badge-${rawBadgeId.replace(/:/g, "")}`;
@@ -315,6 +334,20 @@ export default function HomeHeroSection() {
     applyViewportState();
     const mountTimer = requestAnimationFrame(() => setMounted(true));
 
+    // Re-measure every ScrollTrigger on the page whenever the layout settles
+    // (hero height change, lazy images, web fonts). Keeps every section's
+    // entrance in sync with where its content really is.
+    let refreshTimer = null;
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+    };
+    const bodyObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleRefresh) : null;
+    bodyObserver?.observe(document.body);
+    if (document.fonts?.ready) document.fonts.ready.then(scheduleRefresh);
+    scheduleRefresh();
+
     const updateTarget = () => {
       const el = wrapperRef.current;
       if (!el) return;
@@ -350,6 +383,8 @@ export default function HomeHeroSection() {
 
     return () => {
       cancelAnimationFrame(mountTimer);
+      clearTimeout(refreshTimer);
+      bodyObserver?.disconnect();
       window.removeEventListener("scroll", updateTarget);
       window.removeEventListener("resize", onResize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -369,18 +404,7 @@ export default function HomeHeroSection() {
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      // The photo opens like a card expanding to full-bleed.
-      tl.fromTo(
-        q('[data-hero="bg"]'),
-        { clipPath: "inset(7% 7% 7% 7% round 36px)", scale: 1.18 },
-        {
-          clipPath: "inset(0% 0% 0% 0% round 0px)",
-          scale: 1,
-          duration: 1.6,
-          ease: "expo.inOut",
-          clearProps: "clipPath",
-        }
-      )
+      tl
         .from(
           q('[data-hero="badge"]'),
           { scale: 0, rotate: -120, opacity: 0, duration: 1, ease: "back.out(1.7)" },
@@ -447,6 +471,13 @@ export default function HomeHeroSection() {
   // ─── Background parallax ───────────────────────────────────────────────────
   const bgTranslateY = progress * -80;
 
+  // ─── Image grow (scroll-driven) ────────────────────────────────────────────
+  const grow = easedRemap(progress, 0, GROW_END, 0, 1);
+  const bgInsetX = START_INSET_X * (1 - grow);
+  const bgInsetY = START_INSET_Y * (1 - grow);
+  const bgRadius = START_RADIUS * (1 - grow);
+  const bgScale = START_SCALE - (START_SCALE - 1) * grow;
+
   // ─── Phase A: opening headline ─────────────────────────────────────────────
   const phaseAOpacity = 1 - easedRemap(progress, 0.1, 0.28, 0, 1);
   const phaseATranslateY = easedRemap(progress, 0.1, 0.28, 0, -80);
@@ -503,13 +534,20 @@ export default function HomeHeroSection() {
 
       <div
         ref={stageRef}
-        className="sticky top-0 h-screen w-full overflow-hidden"
+        className="sticky top-0 h-screen w-full overflow-hidden bg-[#F6F5F1]"
       >
         {/* ── Background ── */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* data-hero="bg" is the GSAP intro layer (clip-path + scale);
+          {/* data-hero="bg" grows from an inset card to full-bleed with scroll;
               the child below keeps the scroll parallax transform. */}
-          <div data-hero="bg" className="absolute inset-0 will-change-transform">
+          <div
+            data-hero="bg"
+            className="absolute inset-0 will-change-transform"
+            style={{
+              clipPath: `inset(${bgInsetY}% ${bgInsetX}% ${bgInsetY}% ${bgInsetX}% round ${bgRadius}px)`,
+              transform: `scale(${bgScale})`,
+            }}
+          >
             <div
               className="absolute will-change-transform"
               style={{
