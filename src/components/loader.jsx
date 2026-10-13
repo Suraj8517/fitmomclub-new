@@ -24,26 +24,15 @@ import hero from "../assets/home/hero.jpg";
 // TODO: replace with your own photos (import them and list them here).
 const DEFAULT_IMAGES = [
 "https://res.cloudinary.com/q1vba78b/image/upload/v1791863501/mother_vfrvcr.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/wellness_e74adj.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/online_bq5yyz.webp"
-
  ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/trainer_bxgvuy.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/support_xgn6cr.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863504/goal_oip8yb.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/nutrition_rodna3.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1786101450/sleep_s2d5rx.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1786078998/cycle_f6p4lu.webp"
-
 ,"https://res.cloudinary.com/q1vba78b/image/upload/v1786105331/activity_fjkxqw.webp"
-
-
 ];
 
 const BG_COLOR = "#f6f5f1";
@@ -77,6 +66,50 @@ function measure(text, fs) {
   return { w: m.width, a: m.actualBoundingBoxAscent || fs * 0.75 };
 }
 
+/* Measure the "T" from real glyph pixels: crossbar thickness and ink width,
+   as ratios of the letter's cap height, so the zoom works with any fallback font. */
+function measureT() {
+  const fallback = { bar: 0.2, width: 0.6 };
+  try {
+    const size = 300;
+    const c = document.createElement("canvas");
+    c.width = 400;
+    c.height = 400;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.font = `${size}px ${FONT_FAMILY}`;
+    ctx.fillStyle = "#000";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("T", 50, 350);
+    const { data } = ctx.getImageData(0, 0, 400, 400);
+    const solid = (x, y) => data[(y * 400 + x) * 4 + 3] > 128;
+
+    let minX = 400, maxX = -1, minY = 400, maxY = -1;
+    for (let y = 0; y < 400; y++) {
+      for (let x = 0; x < 400; x++) {
+        if (solid(x, y)) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return fallback;
+    const inkW = maxX - minX + 1;
+    const inkH = maxY - minY + 1;
+
+    // walk down a column near the left end of the bar (stem not in the way)
+    const x = minX + Math.max(2, Math.round(inkW * 0.04));
+    let y = minY;
+    while (y <= maxY && solid(x, y)) y++;
+    const bar = y - minY;
+    if (bar < 4) return fallback;
+    return { bar: bar / inkH, width: inkW / inkH };
+  } catch (_) {
+    return fallback;
+  }
+}
+
 /* Work out font sizes, positions and the zoom target for the current screen. */
 function computeLayout(W, H, isMobile) {
   const texts = isMobile ? ["FITMOM", "CLUB"] : ["FITMOM CLUB"];
@@ -98,14 +131,20 @@ function computeLayout(W, H, isMobile) {
     y += gap;
   });
 
-  // Zoom target: the centre of the "I" (solid stem) on the first line.
+  // Zoom target: the middle of the T's top bar (the T in "FITMOM", first line).
   const first = lines[0];
   const totalW = measure(first.text, first.fs).w;
-  const wF = measure("F", first.fs).w;
-  const wI = measure("I", first.fs).w;
-  const ox = W / 2 - totalW / 2 + wF + wI / 2;
-  const oy = first.y - first.a / 2;
-  const S = Math.max(W / wI, H / first.a) * 1.6;
+  const wT = measure("T", first.fs).w;
+  const toT = measure("FIT", first.fs).w; // advance up to and including the T
+  const tAsc = measure("T", first.fs).a;   // cap height of the T
+  const t = measureT();
+
+  const ox = W / 2 - totalW / 2 + toT - wT / 2;   // horizontal centre of the T
+  const barPx = t.bar * tAsc;                     // crossbar thickness in px
+  const oy = first.y - tAsc + barPx / 2;          // vertical centre of the bar
+
+  // Scale until the bar alone covers the viewport (height is the limiting side).
+  const S = Math.max(H / barPx, W / (t.width * tAsc)) * 1.25;
 
   return { W, H, lines, ox, oy, S };
 }
@@ -136,6 +175,13 @@ export default function Loader({ images = DEFAULT_IMAGES, heroImage = hero, onCo
     const body = document.body;
     const prevHtml = html.style.overflow;
     const prevBody = body.style.overflow;
+
+    // On reload the browser tries to restore the old scroll position. Turn that
+    // off and jump to the top instantly, before the lock, so the page is at the
+    // top the moment the loader opens.
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
     const unlock = () => {
@@ -209,6 +255,7 @@ export default function Loader({ images = DEFAULT_IMAGES, heroImage = hero, onCo
     const timers = [];
 
     const finish = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" }); // still at the top when it opens up
       unlockRef.current(); // scroll is released even if the parent keeps us mounted
       setGone(true);
       onComplete?.();
