@@ -108,12 +108,12 @@ export default function Footer() {
           </div>
 
           {/* image: sits below the text on mobile, fills the right half on desktop */}
-          <div className="p-3 pt-0 md:p-3">
+          <div className="p-3 pt-0 md:p-3 ">
             <img
               src={CTA_IMAGE}
               alt=""
               loading="lazy"
-              className="h-[240px] w-full rounded-[22px] object-cover sm:h-[300px] md:h-full md:min-h-[320px]"
+              className="h-[240px] w-full rounded-[22px] object-cover sm:h-[300px] md:h-full md:min-h-[320px] mt-4"
             />
           </div>
         </section>
