@@ -8,7 +8,8 @@ import hero from "../assets/home/hero.jpg";
    While loading: a light screen with FITMOM CLUB cut out of it. Through the
    letters you see photos that swap rapidly.
 
-   On finish: the photo behind the letters crossfades to the hero, then the
+   On finish: the swapping photos fade away so the REAL hero section shows
+   through the letters, then the
    wordmark scales up until a single letter fills the screen. During the last
    part of the zoom the whole overlay fades out, so the page underneath is
    revealed with no hard cut.
@@ -21,18 +22,18 @@ import hero from "../assets/home/hero.jpg";
      </>
    ────────────────────────────────────────────────────────────────────────── */
 
-// TODO: replace with your own photos (import them and list them here).
+// Photos that swap behind the letters.
 const DEFAULT_IMAGES = [
-"https://res.cloudinary.com/q1vba78b/image/upload/v1791863501/mother_vfrvcr.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/wellness_e74adj.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/online_bq5yyz.webp"
- ,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/trainer_bxgvuy.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/support_xgn6cr.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863504/goal_oip8yb.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/nutrition_rodna3.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1786101450/sleep_s2d5rx.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1786078998/cycle_f6p4lu.webp"
-,"https://res.cloudinary.com/q1vba78b/image/upload/v1786105331/activity_fjkxqw.webp"
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863501/mother_vfrvcr.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/wellness_e74adj.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/online_bq5yyz.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863505/trainer_bxgvuy.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/support_xgn6cr.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863504/goal_oip8yb.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1791863503/nutrition_rodna3.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1786101450/sleep_s2d5rx.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1786078998/cycle_f6p4lu.webp",
+  "https://res.cloudinary.com/q1vba78b/image/upload/v1786105331/activity_fjkxqw.webp",
 ];
 
 const BG_COLOR = "#f6f5f1";
@@ -42,7 +43,7 @@ const MAX_WAIT = 6000;        // never wait longer than this for photos
 const HERO_FADE_MS = 500;     // photo behind letters crossfades to the hero
 const HOLD_MS = 350;          // brief rest on the hero before zooming
 const ZOOM_MS = 1900;         // wordmark scale-up duration
-const FADE_START = 0.68;      // zoom progress where the overlay starts to fade out
+const FADE_START = 0.82;      // zoom progress where the light screen starts to fade out
 
 // Share of the screen width the wordmark takes up
 const widthDesktop = (W) => Math.min(W * 0.62, 760);
@@ -326,6 +327,12 @@ export default function Loader({ images = DEFAULT_IMAGES, heroImage = hero, onCo
     : { backgroundImage: "linear-gradient(135deg,#0b4732 0%,#2f8f6b 50%,#f6c1b0 100%)" };
 
   const layerHints = { willChange: "opacity", transform: "translateZ(0)" };
+  // Swapping photos fade away on exit, so the letters open onto the REAL page
+  // (your hero section) rather than a copy of the hero image.
+  const swapFade = {
+    opacity: showHero ? 0 : 1,
+    transition: `opacity ${HERO_FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+  };
 
   return (
     <div
@@ -344,20 +351,10 @@ export default function Loader({ images = DEFAULT_IMAGES, heroImage = hero, onCo
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');`}</style>
 
       {/* photo layer: rapid swaps seen through the letters */}
-      <div className="absolute inset-0" style={{ ...swapStyle, ...layerHints }} aria-hidden="true" />
-
-      {/* hero layer: fades in over the swapping photos (no hard cut) */}
       <div
         className="absolute inset-0"
+        style={{ ...swapStyle, ...layerHints, ...swapFade }}
         aria-hidden="true"
-        style={{
-          ...layerHints,
-          backgroundImage: `url("${heroImage}")`,
-          backgroundSize: "cover",
-          backgroundPosition: "100% 0%",
-          opacity: showHero ? 1 : 0,
-          transition: `opacity ${HERO_FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-        }}
       />
 
       {/* light screen with the wordmark cut out of it */}
