@@ -32,11 +32,13 @@ import Miracle from './programs/miracle';
 import FMC from './programs/fmc';
 import NotFound from './notFound';
 import PopupForm from '../components/Helper/PopupForm';
+import Loader from '../components/loader';
 export default function LandingPage() {
   return (
     <>
     <Router>
-    <ScrollToTop/> 
+    <ScrollToTop/>
+    <Loader/> 
       <Navbar/>
       <PopupForm scriptURL="https://script.google.com/macros/s/AKfycbwyFQzwNGKRkxEP3NAZgZJuvz53ehI50gvciFiK9zmld7UrmO1KQlmY7KrpVIwDFyw/exec"/>
       <Routes>
