@@ -12,12 +12,13 @@ import { ArrowUpRight } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import hero from "../../assets/home/hero.jpg";
+import mobhero from "../../assets/home/mobile-hero.jpg";
 import RunningSVG from "../Helper/StorySection/RunningSVG";
 import Heart from "../Helper/Heart";
 import ConsultationButton from "../Helper/ConsultationButton";
 
 gsap.registerPlugin(ScrollTrigger);
-
+const MOB_IMAGE = mobhero
 const BG_IMAGE = hero;
 const SMOOTHING = 7;
 const PILLS_GAP = 28;
@@ -480,7 +481,7 @@ export default function HomeHeroSection() {
 
   // ─── Background parallax ───────────────────────────────────────────────────
   const bgTranslateY = progress * -80;
-
+const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
   // ─── Image: scales down on load, scales up on scroll ───────────────────────
   // Before mount the image sits at LOAD_SCALE; once mounted it eases down to 1
   // (CSS transition). Scrolling then scales it up from 1. After INTRO_MS the
@@ -562,9 +563,9 @@ export default function HomeHeroSection() {
               }}
             >
               <img
-                src={BG_IMAGE}
+                src={bgSrc}
                 alt=""
-                className="hero-kenburns absolute inset-0 w-full h-full object-cover object-top-right"
+                className={`hero-kenburns absolute inset-0 w-full h-full object-cover ${isMobile ? "object-center" : "object-top-right" }`}
                 loading="eager"
               />
             </div>
