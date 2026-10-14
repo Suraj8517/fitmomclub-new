@@ -18,18 +18,16 @@ import Heart from "../Helper/Heart";
 import ConsultationButton from "../Helper/ConsultationButton";
 
 gsap.registerPlugin(ScrollTrigger);
-const MOB_IMAGE = mobhero
+const MOB_IMAGE = mobhero;
 const BG_IMAGE = hero;
 const SMOOTHING = 7;
 const PILLS_GAP = 28;
 
-// Full-bleed background image, no inset or rounded corners.
-// On load it scales DOWN (LOAD_SCALE -> 1); on scroll it scales UP (1 -> 1 + SCROLL_SCALE).
-const LOAD_SCALE = 1.25;    // image scale at the very start of the page load
-const SCROLL_SCALE = 0.18;  // extra scale added by the time you reach GROW_END
-const GROW_END = 0.6;       // scroll progress (0–1) at which the scroll scale is complete
-const INTRO_EASE = "1.6s cubic-bezier(0.22, 1, 0.36, 1)"; // load "scale down" transition
-const INTRO_MS = 1800;      // after this the transition is switched off so scroll stays instant
+// Background framing: tweak these to taste
+const BG_ZOOM_DESKTOP = 1.12; // 1 = no zoom
+const BG_SHIFT_DESKTOP = 10; // % pushed to the right
+const BG_ZOOM_MOBILE = 1.06;
+const BG_SHIFT_MOBILE = 3;
 
 const BADGE_TEXT = "JOIN THE MOM TRIBE • GET STRONGER • FMC •";
 
@@ -284,9 +282,6 @@ export default function HomeHeroSection() {
   const [progress, setProgress] = useState(0);
   const [vh, setVh] = useState(800);
   const [mounted, setMounted] = useState(false);
-  // True once the load "scale down" transition has finished; after that the
-  // transition is removed so the scroll-driven growth stays instant.
-  const [introDone, setIntroDone] = useState(false);
   // Initialised from the real viewport (not a desktop default) so the hero is
   // the right height on the very first layout. Otherwise the page shortens by
   // 80vh on phones after ScrollTrigger has already measured every section
@@ -326,14 +321,7 @@ export default function HomeHeroSection() {
     }
   }, []);
 
-  // ─── Intro: let the CSS transition play once, then switch it off ───────────
-  useEffect(() => {
-    if (!mounted) return undefined;
-    const t = setTimeout(() => setIntroDone(true), INTRO_MS);
-    return () => clearTimeout(t);
-  }, [mounted]);
-
-  // ─── Scroll-smoothing loop (unchanged) ─────────────────────────────────────
+  // ─── Scroll-smoothing loop ─────────────────────────────────────────────────
   useEffect(() => {
     const applyViewportState = () => {
       setVh(window.innerHeight);
@@ -479,15 +467,11 @@ export default function HomeHeroSection() {
     return () => mm.revert();
   }, []);
 
-  // ─── Background parallax ───────────────────────────────────────────────────
+  // ─── Background parallax + framing (zoom/shift lives on the <img>) ─────────
   const bgTranslateY = progress * -80;
-const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
-  // ─── Image: scales down on load, scales up on scroll ───────────────────────
-  // Before mount the image sits at LOAD_SCALE; once mounted it eases down to 1
-  // (CSS transition). Scrolling then scales it up from 1. After INTRO_MS the
-  // transition is removed so the scroll-driven scale stays instant.
-  const grow = easedRemap(progress, 0, GROW_END, 0, 1);
-  const bgScale = (mounted ? 1 : LOAD_SCALE) * (1 + SCROLL_SCALE * grow);
+  const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
+  const bgZoom = isMobile ? BG_ZOOM_MOBILE : BG_ZOOM_DESKTOP;
+  const bgShift = isMobile ? BG_SHIFT_MOBILE : BG_SHIFT_DESKTOP;
 
   // ─── Phase A: opening headline ─────────────────────────────────────────────
   const phaseAOpacity = 1 - easedRemap(progress, 0.1, 0.28, 0, 1);
@@ -520,15 +504,10 @@ const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
       className="relative"
     >
       <style>{`
-        @keyframes heroKenBurns {
-          0%, 100% { transform: scale(1.06); }
-          50%      { transform: scale(1.14); }
-        }
         @keyframes heroScrollCue {
           0%, 100% { opacity: 0.45; transform: translateY(0); }
           50%      { opacity: 1; transform: translateY(5px); }
         }
-        .hero-kenburns { animation: heroKenBurns 16s ease-in-out infinite; }
         .hero-scroll-chevron { animation: heroScrollCue 1.6s ease-in-out infinite; }
 
         /* Hover feedback. The transition is only switched on once GSAP has
@@ -538,7 +517,6 @@ const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
         .hero-pill[data-ready] { transition: transform 0.2s ease, box-shadow 0.2s ease; }
 
         @media (prefers-reduced-motion: reduce) {
-          .hero-kenburns { animation: none; }
           .hero-scroll-chevron { animation: none; }
         }
       `}</style>
@@ -550,22 +528,27 @@ const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
         {/* ── Background ── */}
         <div className="absolute inset-0 overflow-hidden">
           <div data-hero="bg" className="absolute inset-0 will-change-transform">
-            {/* Parallax + scale layer */}
+            {/* Parallax layer (translate only; zoom/shift is applied on the img) */}
             <div
               className="absolute will-change-transform"
               style={{
-                top: "-20%",
+                top: "-15%",
                 bottom: "-20%",
                 left: 0,
                 right: 0,
-                transform: `translate3d(0px, ${bgTranslateY}px, 0px) scale(${bgScale})`,
-                transition: introDone ? "none" : `transform ${INTRO_EASE}`,
+                transform: `translate3d(0px, ${bgTranslateY}px, 0px)`,
               }}
             >
               <img
                 src={bgSrc}
                 alt=""
-                className={`hero-kenburns absolute inset-0 w-full h-full object-cover ${isMobile ? "object-center" : "object-top-right" }`}
+                className={`absolute inset-0 w-full h-full object-cover ${
+                  isMobile ? "object-top" : "object-top-right"
+                }`}
+                style={{
+                  transform: `translateX(${bgShift}%) scale(${bgZoom})`,
+                  transformOrigin: isMobile ? "top center" : "top right",
+                }}
                 loading="eager"
               />
             </div>
@@ -594,7 +577,7 @@ const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
                 pointerEvents: phaseAOpacity > 0.05 ? "auto" : "none",
               }}
             >
-              <h1 className="2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-tight text-white sm:text-6xl 2xl:text-[5.95rem]">
+              <h1 className="2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-[1] text-[#2F4F4F] sm:text-6xl 2xl:text-[5.95rem]">
                 <SplitWords
                   text="Join the #1 Fitness & Wellness Community for Moms"
                   delay={0.7}
@@ -614,7 +597,7 @@ const bgSrc = isMobile ? MOB_IMAGE : BG_IMAGE;
               >
                 <p
                   ref={phaseBMeasureRef}
-                  className="max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-white sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
+                  className="max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-[#2B2B2B] sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
                 >
                   <SplitWords text="A program that fits your body, your goals and your life." />
                 </p>
