@@ -27,7 +27,7 @@ const PILLS_GAP = 28;
 const BG_ZOOM_DESKTOP = 1.12; // 1 = no zoom
 const BG_SHIFT_DESKTOP = 10; // % pushed to the right
 const BG_ZOOM_MOBILE = 1.06;
-const BG_SHIFT_MOBILE = 3;
+const BG_SHIFT_MOBILE = 0;
 
 const BADGE_TEXT = "JOIN THE MOM TRIBE • GET STRONGER • FMC •";
 
@@ -543,11 +543,11 @@ export default function HomeHeroSection() {
                 src={bgSrc}
                 alt=""
                 className={`absolute inset-0 w-full h-full object-cover ${
-                  isMobile ? "object-top" : "object-top-right"
+                  isMobile ? "object-center" : "object-top-right"
                 }`}
                 style={{
                   transform: `translateX(${bgShift}%) scale(${bgZoom})`,
-                  transformOrigin: isMobile ? "top center" : "top right",
+                  transformOrigin: isMobile ? "center" : "top right",
                 }}
                 loading="eager"
               />
@@ -577,7 +577,7 @@ export default function HomeHeroSection() {
                 pointerEvents: phaseAOpacity > 0.05 ? "auto" : "none",
               }}
             >
-              <h1 className="2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-[1] text-[#2F4F4F] sm:text-6xl 2xl:text-[5.95rem]">
+              <h1 className="2xl:max-w-5xl max-w-2xl text-3xl font-medium leading-[1] text-white sm:text-[#2F4F4F] sm:text-6xl 2xl:text-[5.95rem]">
                 <SplitWords
                   text="Join the #1 Fitness & Wellness Community for Moms"
                   delay={0.7}
@@ -597,7 +597,7 @@ export default function HomeHeroSection() {
               >
                 <p
                   ref={phaseBMeasureRef}
-                  className="max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-[#2B2B2B] sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
+                  className="max-w-2xl 2xl:max-w-5xl text-3xl font-medium leading-tight text-white sm:text-[#2B2B2B] sm:text-4xl lg:text-5xl 2xl:text-[5.55rem]"
                 >
                   <SplitWords text="A program that fits your body, your goals and your life." />
                 </p>
