@@ -15,19 +15,9 @@ import femaleOverweight from "../../assets/form/female/female-overweight.png";
 import femaleObese from "../../assets/form/female/female-obese.png";
 import femaleExtremeObese from "../../assets/form/female/female-extreme-obese.png";
 
-/**
- * PopupForm — multi-step version.
- *
- * Same behaviour as the single-page popup:
- *  - opens on page load, on click of [data-cpf-trigger], and on route change
- *  - captures UTM params + landing URL
- *  - posts to the Google Apps Script `scriptURL` with the same field names
- *  - success / error states, Escape + backdrop close, body scroll lock
- *
- * Flow: Age -> Gender -> Contact (name, email, phone, city) -> Goal
- *       -> Weight -> Height -> Result (BMI) -> Submit -> Thank you
- */
 
+const ENV_SHEET_URL = import.meta.env?.VITE_SHEET_URL || "";
+console.log("ENV_SHEET_URL", ENV_SHEET_URL);
 const COUNTRY_CODES = [
   { code: "+91", label: "India" },
   { code: "+1", label: "United States" },
@@ -83,12 +73,72 @@ const EMPTY_FORM = {
   weightUnit: "kg",
   city: "",
   goal: "",
+  website: "", // honeypot — real users never see or fill this
 };
 
 const STEPS = ["age", "gender", "contact", "goal", "weight", "height", "result"];
 
-const EMAIL_RE = /^\S+@\S+\.\S+$/;
+/* ───────────────────────── validation & sanitising ───────────────────────── */
+
+// Allow-lists (not block-lists)
+const NAME_RE = /^\p{L}[\p{L}\p{M} .'-]{1,59}$/u; // letters, space . ' -
+const CITY_RE = /^\p{L}[\p{L}\p{M} .'-]{1,59}$/u;
+const EMAIL_RE =
+  /^[A-Za-z0-9][A-Za-z0-9._%+-]{0,63}@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,24}$/;
 const PHONE_RE = /^[0-9]{7,12}$/;
+const IN_PHONE_RE = /^[6-9][0-9]{9}$/; // Indian mobile numbers
+const CUSTOM_CODE_RE = /^\+[0-9]{1,4}$/;
+
+const ALLOWED_GENDERS = ["Male", "Female"];
+const ALLOWED_WEIGHT_UNITS = ["kg", "lb"];
+const ALLOWED_HEIGHT_UNITS = ["cm", "in"];
+
+// Live input sanitizers (run on every keystroke)
+const cleanText = (v, max = 60) =>
+  String(v)
+    .normalize("NFKC")
+    .replace(/[’‘]/g, "'")
+    .replace(/[^\p{L}\p{M} .'-]/gu, "") // drops digits, <>, =, @, quotes, emoji, control chars
+    .replace(/^[^\p{L}]+/u, "") // must start with a letter
+    .replace(/\s{2,}/g, " ")
+    .slice(0, max);
+
+const cleanEmail = (v) =>
+  String(v)
+    .replace(/[^A-Za-z0-9._%+@-]/g, "")
+    .replace(/^[^A-Za-z0-9]+/, "")
+    .slice(0, 254);
+
+const cleanCode = (v) => {
+  const s = String(v).replace(/[^0-9+]/g, "");
+  return ("+" + s.replace(/\+/g, "")).slice(0, 5);
+};
+
+// Submit-time sanitizer: strips control / zero-width / bidi chars and
+// neutralises Google Sheets formula triggers.
+const FORMULA_START = /^[=+\-@\t\r|%]/;
+const safeCell = (v, max = 200) => {
+  const s = String(v ?? "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .trim()
+    .slice(0, max);
+  return FORMULA_START.test(s) ? `'${s}` : s;
+};
+
+// UTM values: tiny allow-list
+const cleanUtm = (v) => String(v || "").replace(/[^\w\-.~+ %]/g, "").slice(0, 100);
+
+// Landing URL: http(s) only, rebuilt from parsed parts (no query/hash), length-capped
+const cleanUrl = (href) => {
+  try {
+    const u = new URL(href);
+    if (!/^https?:$/.test(u.protocol)) return "";
+    return (u.origin + u.pathname).slice(0, 300);
+  } catch {
+    return "";
+  }
+};
 
 const GENDER_OPTIONS = [
   { id: "Male", label: "Male", img: male },
@@ -188,7 +238,7 @@ function IconChevron(props) {
 /* ───────────────────────── main component ───────────────────────── */
 
 export default function PopupForm({
-  scriptURL = "",
+  scriptURL = ENV_SHEET_URL,
   enablePageLoadTrigger = true,
   pageLoadDelay = 10000,
   buttonTriggerSelector = "[data-cpf-trigger]",
@@ -206,8 +256,7 @@ export default function PopupForm({
   const isFirstRoute = useRef(true);
   const location = useLocation();
   const routeKey = location.pathname + location.search;
-const url ="https://script.google.com/macros/s/AKfycbwbHorwZvOY_0DClL36ADhb3De1fK36bQWGltPuZtE0gEAP0MQwIRuawYqtufHZcQ/exec";
-console.log("url",url);
+  const url = ENV_SHEET_URL;
   const step = STEPS[stepIndex];
 
   // ---- Capture UTM params + landing page URL once, on first mount ----
@@ -215,12 +264,12 @@ console.log("url",url);
   if (trackingRef.current === null) {
     const params = new URLSearchParams(window.location.search);
     trackingRef.current = {
-      utm_source: params.get("utm_source") || "",
-      utm_medium: params.get("utm_medium") || "",
-      utm_campaign: params.get("utm_campaign") || "",
-      utm_term: params.get("utm_term") || "",
-      utm_content: params.get("utm_content") || "",
-      page_url: window.location.href,
+      utm_source: cleanUtm(params.get("utm_source")),
+      utm_medium: cleanUtm(params.get("utm_medium")),
+      utm_campaign: cleanUtm(params.get("utm_campaign")),
+      utm_term: cleanUtm(params.get("utm_term")),
+      utm_content: cleanUtm(params.get("utm_content")),
+      page_url: cleanUrl(window.location.href),
     };
   }
 
@@ -268,8 +317,6 @@ console.log("url",url);
   }, []);
 
   // ---- Trigger: react-router-dom navigation change ----
-  // Skips the very first render (covered by the page-load trigger) and fires
-  // again every time the route changes after that.
   useEffect(() => {
     if (!enableRouteChangeTrigger) return;
 
@@ -299,11 +346,10 @@ console.log("url",url);
 
   const setField = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
-  // Convert the typed value when the unit toggle changes, so "70 kg" becomes
-  // "154 lb" instead of silently turning into "70 lb".
+  // Convert the typed value when the unit toggle changes
   const changeWeightUnit = (unit) =>
     setForm((f) => {
-      if (unit === f.weightUnit) return f;
+      if (!ALLOWED_WEIGHT_UNITS.includes(unit) || unit === f.weightUnit) return f;
       const n = Number(f.weight);
       const weight = n
         ? String(Math.round(unit === "lb" ? n * LB_PER_KG : n / LB_PER_KG))
@@ -313,7 +359,7 @@ console.log("url",url);
 
   const changeHeightUnit = (unit) =>
     setForm((f) => {
-      if (unit === f.heightUnit) return f;
+      if (!ALLOWED_HEIGHT_UNITS.includes(unit) || unit === f.heightUnit) return f;
       const n = Number(f.height);
       const height = n
         ? String(Math.round(unit === "in" ? n / CM_PER_IN : n * CM_PER_IN))
@@ -335,21 +381,29 @@ console.log("url",url);
 
   // ---- Per-step validation (every field required) ----
   const codeOk =
-    form.countryCode === "other" ? form.customCode.trim().length > 0 : !!form.countryCode;
+    form.countryCode === "other"
+      ? CUSTOM_CODE_RE.test(form.customCode)
+      : COUNTRY_CODES.some((c) => c.code === form.countryCode);
+
+  const phoneOk =
+    form.countryCode === "+91" ? IN_PHONE_RE.test(form.phone) : PHONE_RE.test(form.phone);
+
   const ageNum = Number(form.age);
 
   const stepValid = {
-    age: ageNum > 0 && ageNum <= 120,
-    gender: !!form.gender,
+    age: Number.isInteger(ageNum) && ageNum >= 1 && ageNum <= 120,
+    gender: ALLOWED_GENDERS.includes(form.gender),
     contact:
-      form.name.trim().length > 0 &&
+      NAME_RE.test(form.name.trim()) &&
       EMAIL_RE.test(form.email) &&
       codeOk &&
-      PHONE_RE.test(form.phone) &&
-      form.city.trim().length > 0,
-    goal: !!form.goal,
-    weight: weightKg >= 20 && weightKg <= 400,
-    height: heightCm >= 50 && heightCm <= 260,
+      phoneOk &&
+      CITY_RE.test(form.city.trim()),
+    goal: GOALS.includes(form.goal),
+    weight:
+      ALLOWED_WEIGHT_UNITS.includes(form.weightUnit) && weightKg >= 20 && weightKg <= 400,
+    height:
+      ALLOWED_HEIGHT_UNITS.includes(form.heightUnit) && heightCm >= 50 && heightCm <= 260,
     result: !!bmi,
   };
 
@@ -370,33 +424,41 @@ console.log("url",url);
     if (status === "submitting") return;
     if (!STEPS.slice(0, -1).every((s) => stepValid[s])) return;
 
+    // Honeypot tripped: pretend success, send nothing
+    if (form.website) {
+      setStatus("success");
+      return;
+    }
+
     setStatus("submitting");
     const code = form.countryCode === "other" ? form.customCode : form.countryCode;
-console.log("Submitting form:", { ...form, countryCode: code, bmi, bodyType: bodyType?.id ,scriptURL});
+
     try {
       if (url) {
+        const t = trackingRef.current;
         const body = new FormData();
-        body.append("name", form.name);
-        body.append("email", form.email);
-        body.append("phone", `${code}${form.phone}`);
-        body.append("gender", form.gender);
-        body.append("age", form.age);
-        body.append("height", `${form.height}${form.heightUnit}`);
-        body.append("weight", `${form.weight}${form.weightUnit}`);
-        body.append("city", form.city);
-        body.append("goal", form.goal);
+        body.append("name", safeCell(form.name, 60));
+        body.append("email", safeCell(form.email, 254));
+        // phone is strictly regex-validated (+digits only), so no apostrophe prefix needed
+        body.append("phone", `${code}${form.phone}`.slice(0, 20));
+        body.append("gender", safeCell(form.gender, 10));
+        body.append("age", String(ageNum));
+        body.append("height", `${Math.round(Number(form.height))}${form.heightUnit}`);
+        body.append("weight", `${Math.round(Number(form.weight))}${form.weightUnit}`);
+        body.append("city", safeCell(form.city, 60));
+        body.append("goal", safeCell(form.goal, 60));
         body.append("date", new Date().toISOString());
-        body.append("utm_source", trackingRef.current.utm_source);
-        body.append("utm_medium", trackingRef.current.utm_medium);
-        body.append("utm_campaign", trackingRef.current.utm_campaign);
-        body.append("utm_term", trackingRef.current.utm_term);
-        body.append("utm_content", trackingRef.current.utm_content);
-        body.append("page_url", trackingRef.current.page_url);
+        body.append("utm_source", safeCell(t.utm_source, 100));
+        body.append("utm_medium", safeCell(t.utm_medium, 100));
+        body.append("utm_campaign", safeCell(t.utm_campaign, 100));
+        body.append("utm_term", safeCell(t.utm_term, 100));
+        body.append("utm_content", safeCell(t.utm_content, 100));
+        body.append("page_url", safeCell(t.page_url, 300));
 
         await fetch(url, { method: "POST", mode: "no-cors", body });
       }
       setStatus("success");
-    } catch (err) {
+    } catch {
       setStatus("error");
     }
   };
@@ -612,7 +674,7 @@ function StepHeading({ title, subtitle }) {
 const fieldShell =
   "flex items-center gap-2 rounded-2xl border border-stone-200 bg-white shadow-sm transition focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100";
 
-function TextField({ value, onChange, type = "text", placeholder, autoFocus, inputMode }) {
+function TextField({ value, onChange, type = "text", placeholder, autoFocus, inputMode, maxLength = 254 }) {
   return (
     <label className="block">
       <div className={`${fieldShell} px-5 py-3.5`}>
@@ -621,6 +683,7 @@ function TextField({ value, onChange, type = "text", placeholder, autoFocus, inp
           inputMode={inputMode}
           autoFocus={autoFocus}
           value={value}
+          maxLength={maxLength}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           className="w-full min-w-0 bg-transparent text-lg font-semibold tracking-tight text-stone-900 outline-none placeholder:font-normal placeholder:text-stone-300"
@@ -665,10 +728,15 @@ function NumberField({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          maxLength={3}
           autoFocus={autoFocus}
           value={value}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+            // clamp to max so values like 999 can't exceed the field's limit
+            onChange(digits && Number(digits) > max ? String(max) : digits);
+          }}
           className="w-full min-w-0 bg-transparent text-center text-3xl font-extrabold tracking-tight text-stone-900 outline-none placeholder:text-stone-300"
         />
         {units ? (
@@ -839,7 +907,7 @@ function StepGender({ value, onChange }) {
 
 function StepContact({ form, setField }) {
   return (
-    <div className="flex flex-col">
+    <div className="relative flex flex-col">
       <StepHeading
         title="A few details about you"
         subtitle="We'll use this to save your results and send your plan. All fields are required."
@@ -848,13 +916,14 @@ function StepContact({ form, setField }) {
       <div className="mt-6 flex flex-col gap-3 sm:max-w-md">
         <TextField
           value={form.name}
-          onChange={setField("name")}
+          onChange={(v) => setField("name")(cleanText(v))}
           placeholder="Full name *"
+          maxLength={60}
           autoFocus
         />
         <TextField
           value={form.email}
-          onChange={setField("email")}
+          onChange={(v) => setField("email")(cleanEmail(v))}
           type="email"
           inputMode="email"
           placeholder="Email address *"
@@ -889,7 +958,9 @@ function StepContact({ form, setField }) {
               maxLength={12}
               value={form.phone}
               placeholder="Phone number *"
-              onChange={(e) => setField("phone")(e.target.value.replace(/[^0-9]/g, ""))}
+              onChange={(e) =>
+                setField("phone")(e.target.value.replace(/[^0-9]/g, "").slice(0, 12))
+              }
               className="w-full min-w-0 bg-transparent px-1 py-2 text-lg font-semibold tracking-tight text-stone-900 outline-none placeholder:font-normal placeholder:text-stone-300"
             />
           </div>
@@ -898,14 +969,32 @@ function StepContact({ form, setField }) {
             <div className="mt-3">
               <TextField
                 value={form.customCode}
-                onChange={(v) => setField("customCode")(v.replace(/[^0-9+]/g, "").slice(0, 5))}
+                onChange={(v) => setField("customCode")(cleanCode(v))}
                 placeholder="Enter your country code (e.g. +49) *"
+                maxLength={5}
               />
             </div>
           )}
         </div>
 
-        <TextField value={form.city} onChange={setField("city")} placeholder="City *" />
+        <TextField
+          value={form.city}
+          onChange={(v) => setField("city")(cleanText(v))}
+          placeholder="City *"
+          maxLength={60}
+        />
+
+        {/* Honeypot: hidden from humans, bots tend to fill it */}
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          value={form.website || ""}
+          onChange={(e) => setField("website")(e.target.value)}
+          style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+        />
       </div>
     </div>
   );
