@@ -206,7 +206,8 @@ export default function PopupForm({
   const isFirstRoute = useRef(true);
   const location = useLocation();
   const routeKey = location.pathname + location.search;
-
+const url ="https://script.google.com/macros/s/AKfycbwbHorwZvOY_0DClL36ADhb3De1fK36bQWGltPuZtE0gEAP0MQwIRuawYqtufHZcQ/exec";
+console.log("url",url);
   const step = STEPS[stepIndex];
 
   // ---- Capture UTM params + landing page URL once, on first mount ----
@@ -371,9 +372,9 @@ export default function PopupForm({
 
     setStatus("submitting");
     const code = form.countryCode === "other" ? form.customCode : form.countryCode;
-
+console.log("Submitting form:", { ...form, countryCode: code, bmi, bodyType: bodyType?.id ,scriptURL});
     try {
-      if (scriptURL) {
+      if (url) {
         const body = new FormData();
         body.append("name", form.name);
         body.append("email", form.email);
@@ -392,7 +393,7 @@ export default function PopupForm({
         body.append("utm_content", trackingRef.current.utm_content);
         body.append("page_url", trackingRef.current.page_url);
 
-        await fetch(scriptURL, { method: "POST", mode: "no-cors", body });
+        await fetch(url, { method: "POST", mode: "no-cors", body });
       }
       setStatus("success");
     } catch (err) {
