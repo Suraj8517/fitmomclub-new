@@ -38,9 +38,14 @@ export default function LandingPage() {
     <>
     <Router>
     <ScrollToTop/>
+    <Loader/> 
       <Navbar/>
-      <PopupForm scriptURL="https://script.google.com/macros/s/AKfycbwyFQzwNGKRkxEP3NAZgZJuvz53ehI50gvciFiK9zmld7UrmO1KQlmY7KrpVIwDFyw/exec"/>
-      <Routes>
+      <PopupForm
+  scriptURL="..."
+  floatingButtonLabel="Book Free Assessment"  // default: "Free Assessment"
+  showFloatingButton={true}                    // set false to hide it
+/>
+  <Routes>
         <Route path='/' element={<HomePage/>}/>
         <Route path='/about-us' element={<Aboutus/>}/>
         <Route path='/our-app' element={<OurAppPage/>}/>

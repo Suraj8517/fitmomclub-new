@@ -333,19 +333,34 @@ export default function HomeHeroSection() {
     applyViewportState();
     const mountTimer = requestAnimationFrame(() => setMounted(true));
 
-    // Re-measure every ScrollTrigger on the page whenever the layout settles
-    // (hero height change, lazy images, web fonts). Keeps every section's
-    // entrance in sync with where its content really is.
+    // ── FIX 1: refresh ScrollTrigger only when the page height REALLY changed.
+    // Before, ScrollTrigger.refresh() changed the layout, which re-fired the
+    // ResizeObserver, which scheduled another refresh... an endless loop that
+    // eventually froze scrolling.
     let refreshTimer = null;
-    const scheduleRefresh = () => {
+    let lastHeight = document.body.offsetHeight;
+
+    const doRefresh = () => {
       clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+      refreshTimer = setTimeout(() => {
+        ScrollTrigger.refresh();
+        // Record the height AFTER refresh so refresh-induced jitter is ignored.
+        lastHeight = document.body.offsetHeight;
+      }, 150);
     };
+
+    const onBodyResize = () => {
+      const h = document.body.offsetHeight;
+      if (Math.abs(h - lastHeight) < 2) return;
+      lastHeight = h;
+      doRefresh();
+    };
+
     const bodyObserver =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleRefresh) : null;
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(onBodyResize) : null;
     bodyObserver?.observe(document.body);
-    if (document.fonts?.ready) document.fonts.ready.then(scheduleRefresh);
-    scheduleRefresh();
+    if (document.fonts?.ready) document.fonts.ready.then(doRefresh);
+    doRefresh();
 
     const updateTarget = () => {
       const el = wrapperRef.current;
@@ -355,20 +370,36 @@ export default function HomeHeroSection() {
       if (total <= 0) return;
       const scrolled = Math.min(Math.max(-rect.top, 0), total);
       targetRef.current = scrolled / total;
+      startLoop(); // FIX 2: wake the loop only when there is something to animate
     };
 
+    // ── FIX 2: the rAF loop now stops itself once it has caught up with the
+    // scroll position, instead of running (and calling setProgress) forever.
     const tick = (time) => {
       if (lastTimeRef.current == null) lastTimeRef.current = time;
       const dt = Math.min((time - lastTimeRef.current) / 1000, 1 / 30);
       lastTimeRef.current = time;
       const t = 1 - Math.exp(-SMOOTHING * dt);
       renderedRef.current += (targetRef.current - renderedRef.current) * t;
+
       if (Math.abs(targetRef.current - renderedRef.current) < 0.0005) {
         renderedRef.current = targetRef.current;
+        setProgress(renderedRef.current);
+        rafRef.current = null; // stop looping
+        lastTimeRef.current = null;
+        return;
       }
+
       setProgress(renderedRef.current);
       rafRef.current = requestAnimationFrame(tick);
     };
+
+    function startLoop() {
+      if (rafRef.current == null) {
+        lastTimeRef.current = null;
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
 
     const onResize = () => {
       applyViewportState();
@@ -378,7 +409,6 @@ export default function HomeHeroSection() {
     window.addEventListener("scroll", updateTarget, { passive: true });
     window.addEventListener("resize", onResize);
     updateTarget();
-    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(mountTimer);
@@ -386,7 +416,9 @@ export default function HomeHeroSection() {
       bodyObserver?.disconnect();
       window.removeEventListener("scroll", updateTarget);
       window.removeEventListener("resize", onResize);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null; // important for StrictMode / HMR re-mounts
+      lastTimeRef.current = null;
       if (phaseBObserverRef.current) phaseBObserverRef.current.disconnect();
     };
   }, []);

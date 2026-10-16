@@ -16,31 +16,55 @@ import femaleObese from '../assets/form/female/female-obese.png'
 import femaleExtremeObese from '../assets/form/female/female-extreme-obese.png'
 
 /**
- * BodyAssessmentForm
- * -------------------
- * Multi-step onboarding flow: Age -> Gender -> Contact -> Weight -> Height -> Result (BMI + body type)
+ * BodyAssessmentForm (popup)
+ * --------------------------
+ * Multi-step onboarding flow shown in a modal:
+ *   Age -> Gender -> Contact (name, email, phone, city) -> Primary goal
+ *   -> Weight -> Height -> Result (BMI + body type)
  *
- * Drop this into a React + Tailwind project. No extra dependencies required.
- * Light theme with custom +/- stepper buttons on every numeric field (native
- * spinner arrows are hidden in favor of these).
+ * Every field is required.
  *
- * Sizing: the card is capped at max-h-[92vh] with internal scrolling, so it
- * always fits inside the viewport instead of pushing the page down. Width is
- * a wider max-w-lg card on larger screens; on phones it still goes edge to
- * edge.
+ * Usage:
+ *   const [open, setOpen] = useState(false);
+ *   <button onClick={() => setOpen(true)}>Free assessment</button>
+ *   <BodyAssessmentForm
+ *     open={open}
+ *     onClose={() => setOpen(false)}
+ *     onSubmit={(payload) => { console.log(payload); setOpen(false); }}
+ *   />
  */
 
 // ---------------------------------------------------------------------------
 // Config / data
 // ---------------------------------------------------------------------------
 
-const STEPS = ["age", "gender", "contact", "weight", "height", "result"];
+const STEPS = ["age", "gender", "contact", "goal", "weight", "height", "result"];
+
+const INITIAL_DATA = {
+  age: "",
+  gender: "",
+  name: "",
+  email: "",
+  phoneCountry: "US",
+  phone: "",
+  city: "",
+  goal: "",
+  weightKg: "",
+  heightCm: "",
+};
 
 const GENDER_IMAGES = { male, female };
 
 const GENDER_OPTIONS = [
   { id: "male", label: "Male" },
   { id: "female", label: "Female" },
+];
+
+const GOAL_OPTIONS = [
+  "Weight Management",
+  "Health Issue Management",
+  "Natural Conception/Fertility",
+  "Currently Pregnant",
 ];
 
 // Body-type result image per gender per BMI category
@@ -384,6 +408,7 @@ function TextField({ value, onChange, type = "text", placeholder, autoFocus, inp
           autoFocus={autoFocus}
           value={value}
           placeholder={placeholder}
+          required
           onChange={(e) => onChange(e.target.value)}
           className="w-full min-w-0 bg-transparent text-lg font-semibold tracking-tight text-stone-900
                      outline-none placeholder:font-normal placeholder:text-stone-300"
@@ -451,6 +476,71 @@ function NumberField({ value, onChange, unit, placeholder, autoFocus, min, max, 
   );
 }
 
+// Dropdown for a short list of options. The list expands inline (pushing the
+// content down) instead of floating, so it can never be clipped by the
+// popup's scroll container.
+function SelectField({ value, onChange, options, placeholder }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex w-full items-center justify-between gap-3 rounded-2xl border bg-white
+                    px-5 py-3.5 text-left text-lg shadow-sm transition
+                    ${open ? "border-teal-500 ring-2 ring-teal-100" : "border-stone-200 hover:border-stone-300"}`}
+      >
+        <span className={value ? "font-semibold tracking-tight text-stone-900" : "text-stone-300"}>
+          {value || placeholder}
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          className={`shrink-0 text-stone-400 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          className="overflow-hidden rounded-2xl border border-stone-200 bg-white py-1 shadow-sm"
+        >
+          {options.map((opt) => {
+            const selected = opt === value;
+            return (
+              <li key={opt} role="option" aria-selected={selected}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between px-5 py-3 text-left text-base transition
+                    hover:bg-stone-50 ${selected ? "bg-teal-50 font-semibold text-teal-700" : "text-stone-700"}`}
+                >
+                  {opt}
+                  {selected && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const DROPDOWN_WIDTH = 288; // px, keep in sync with the w-72 panel below
 const DROPDOWN_MAX_HEIGHT = 320; // px
 
@@ -458,13 +548,8 @@ const DROPDOWN_MAX_HEIGHT = 320; // px
 // searchable list. Pass the selected ISO code and get the ISO code back.
 //
 // The panel uses position:fixed with coordinates computed from the button's
-// own bounding box, instead of position:absolute. That's deliberate: the
-// button lives inside a card with overflow-y-auto (the "step" container),
-// and an absolutely-positioned dropdown gets clipped the moment it crosses
-// that ancestor's edge — that was the cut-off/overflow glitch from before.
-// Fixed positioning is relative to the viewport, so it escapes an ancestor's
-// overflow clipping without needing a portal (no react-dom dependency, no
-// document.body — just plain React, safe in any rendering setup).
+// own bounding box, instead of position:absolute, so it isn't clipped by the
+// popup card's overflow-y-auto. It sits above the modal (z-[60] > z-50).
 function CountryCodeSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -612,23 +697,42 @@ function CountryCodeSelect({ value, onChange }) {
 }
 
 // ---------------------------------------------------------------------------
-// Main component
+// Main component (popup)
 // ---------------------------------------------------------------------------
 
-export default function BodyAssessmentForm() {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export default function BodyAssessmentForm({ open = false, onClose, onSubmit }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [data, setData] = useState({
-    age: "",
-    gender: "",
-    name: "",
-    email: "",
-    phoneCountry: "US",
-    phone: "",
-    weightKg: "",
-    heightCm: "",
-  });
+  const [data, setData] = useState(INITIAL_DATA);
 
   const step = STEPS[stepIndex];
+
+  // Lock page scroll while the popup is open, and always restore it on close
+  // or unmount (so the page can never get stuck unscrollable).
+  useEffect(() => {
+    if (!open) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  // Start fresh every time the popup is closed.
+  useEffect(() => {
+    if (!open) {
+      setStepIndex(0);
+      setData(INITIAL_DATA);
+    }
+  }, [open]);
 
   const bmi = useMemo(() => {
     const w = Number(data.weightKg);
@@ -639,12 +743,18 @@ export default function BodyAssessmentForm() {
 
   const bodyType = bmi ? getBodyType(bmi) : null;
 
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!open) return null;
 
+  // Every field is required.
   const canAdvance = {
     age: Number(data.age) >= 10 && Number(data.age) <= 99,
     gender: !!data.gender,
-    contact: data.name.trim().length >= 2 && EMAIL_RE.test(data.email) && data.phone.length >= 7,
+    contact:
+      data.name.trim().length >= 2 &&
+      EMAIL_RE.test(data.email.trim()) &&
+      data.phone.replace(/\D/g, "").length >= 7 &&
+      data.city.trim().length >= 2,
+    goal: GOAL_OPTIONS.includes(data.goal),
     weight: Number(data.weightKg) >= 30 && Number(data.weightKg) <= 300,
     height: Number(data.heightCm) >= 100 && Number(data.heightCm) <= 250,
     result: true,
@@ -663,14 +773,33 @@ export default function BodyAssessmentForm() {
     setData((d) => ({ ...d, [field]: value }));
   }
 
+  function handleSubmit() {
+    onSubmit?.({
+      ...data,
+      name: data.name.trim(),
+      email: data.email.trim(),
+      city: data.city.trim(),
+      bmi: bmi ? Math.round(bmi * 10) / 10 : null,
+      bodyType: bodyType?.id ?? null,
+    });
+  }
+
   return (
-    <div className="h-screen w-full overflow-hidden bg-stone-100 text-stone-900 flex items-center justify-center p-3 sm:p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-3 backdrop-blur-sm sm:p-6"
+      onMouseDown={(e) => {
+        // close only when the dark backdrop itself is clicked
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
       <div
-        className="flex w-full max-w-2xl flex-col overflow-y-auto bg-stone-50
-                   max-h-[92vh] sm:rounded-[2rem] sm:border sm:border-stone-200
-                   sm:shadow-xl sm:shadow-stone-200/60"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Body assessment"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-y-auto rounded-[2rem]
+                   border border-stone-200 bg-stone-50 shadow-2xl shadow-stone-900/20"
       >
-        {/* Header: back + progress */}
+        {/* Header: back + progress + close */}
         <div className="sticky top-0 z-10 flex items-center gap-3 bg-stone-50/95 px-5 pt-5 pb-3 backdrop-blur sm:px-8 sm:pt-6">
           <button
             type="button"
@@ -684,10 +813,21 @@ export default function BodyAssessmentForm() {
             </svg>
           </button>
           <ProgressBar stepIndex={stepIndex} total={STEPS.length} />
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400
+                       transition hover:bg-stone-200 hover:text-stone-700"
+            aria-label="Close"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col px-5 pt-4 pb-4 sm:px-8">
+        <div className="flex flex-1 flex-col px-5 pt-4 pb-4 sm:px-8">
           {step === "age" && <StepAge value={data.age} onChange={(v) => set("age", v)} />}
 
           {step === "gender" && (
@@ -700,12 +840,16 @@ export default function BodyAssessmentForm() {
               email={data.email}
               phone={data.phone}
               phoneCountry={data.phoneCountry}
+              city={data.city}
               onChangeName={(v) => set("name", v)}
               onChangeEmail={(v) => set("email", v)}
               onChangePhone={(v) => set("phone", v)}
               onChangePhoneCountry={(v) => set("phoneCountry", v)}
+              onChangeCity={(v) => set("city", v)}
             />
           )}
+
+          {step === "goal" && <StepGoal value={data.goal} onChange={(v) => set("goal", v)} />}
 
           {step === "weight" && (
             <StepWeight value={data.weightKg} onChange={(v) => set("weightKg", v)} />
@@ -716,7 +860,12 @@ export default function BodyAssessmentForm() {
           )}
 
           {step === "result" && bmi && bodyType && (
-            <StepResult bmi={bmi} bodyType={bodyType} gender={data.gender} />
+            <StepResult
+              bmi={bmi}
+              bodyType={bodyType}
+              gender={data.gender}
+              onSubmit={handleSubmit}
+            />
           )}
         </div>
 
@@ -841,10 +990,12 @@ function StepContact({
   email,
   phone,
   phoneCountry,
+  city,
   onChangeName,
   onChangeEmail,
   onChangePhone,
   onChangePhoneCountry,
+  onChangeCity,
 }) {
   return (
     <div className="flex flex-col">
@@ -852,7 +1003,7 @@ function StepContact({
         A few details about you
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        We'll use this to save your results and send your plan.
+        We'll use this to save your results and send your plan. All fields are required.
       </p>
 
       <div className="mt-6 flex flex-col gap-3 sm:max-w-md">
@@ -860,7 +1011,7 @@ function StepContact({
           value={name}
           onChange={onChangeName}
           type="text"
-          placeholder="Full name"
+          placeholder="Full name *"
           autoFocus
         />
         <TextField
@@ -868,7 +1019,7 @@ function StepContact({
           onChange={onChangeEmail}
           type="email"
           inputMode="email"
-          placeholder="Email address"
+          placeholder="Email address *"
         />
 
         {/* Phone: country-code dropdown + national number, same field styling as TextField */}
@@ -883,12 +1034,42 @@ function StepContact({
             type="tel"
             inputMode="tel"
             value={phone}
-            placeholder="Phone number"
+            required
+            placeholder="Phone number *"
             onChange={(e) => onChangePhone(e.target.value.replace(/[^0-9\s-]/g, ""))}
             className="w-full min-w-0 bg-transparent px-1 py-2 text-lg font-semibold tracking-tight
                        text-stone-900 outline-none placeholder:font-normal placeholder:text-stone-300"
           />
         </div>
+
+        <TextField
+          value={city}
+          onChange={onChangeCity}
+          type="text"
+          placeholder="City *"
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepGoal({ value, onChange }) {
+  return (
+    <div className="flex flex-col">
+      <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
+        What is your primary goal? <span className="text-teal-600">*</span>
+      </h1>
+      <p className="mt-2 text-sm text-stone-500">
+        Pick the one that matters most right now — we'll shape your plan around it.
+      </p>
+
+      <div className="mt-6 sm:max-w-md">
+        <SelectField
+          value={value}
+          onChange={onChange}
+          options={GOAL_OPTIONS}
+          placeholder="Select primary goal"
+        />
       </div>
     </div>
   );
@@ -946,7 +1127,7 @@ function StepHeight({ value, onChange }) {
   );
 }
 
-function StepResult({ bmi, bodyType, gender }) {
+function StepResult({ bmi, bodyType, gender, onSubmit }) {
   const roundedBmi = Math.round(bmi * 10) / 10;
   // position of the marker along a 15–40 BMI scale, clamped 0–100%
   const markerPct = Math.min(100, Math.max(0, ((bmi - 15) / (40 - 15)) * 100));
@@ -1007,6 +1188,7 @@ function StepResult({ bmi, bodyType, gender }) {
       <div className="mt-6 w-full">
         <button
           type="button"
+          onClick={onSubmit}
           className="group flex w-full items-center justify-center gap-2 rounded-full bg-teal-600
                      py-3.5 text-center text-base font-bold text-white shadow-lg shadow-teal-600/20
                      transition hover:bg-teal-700 hover:shadow-teal-600/30 active:scale-[0.98]"

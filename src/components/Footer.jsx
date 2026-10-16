@@ -244,9 +244,13 @@ export default function Footer() {
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
               <div data-cta-action>
                 <div data-magnet className="inline-block">
-                  <Link to="/book-consultation" className={pillBtn}>
-                    Book a session <ArrowUpRight />
-                  </Link>
+                  <button
+  type="button"
+  className={pillBtn}
+  onClick={() => window.dispatchEvent(new Event("cpf:open"))}
+>
+  Book a session <ArrowUpRight />
+</button>
                 </div>
               </div>
               <div data-cta-action>

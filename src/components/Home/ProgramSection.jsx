@@ -156,7 +156,7 @@ function PlanCard({ plan }) {
     // data-card is animated by GSAP; the inner div owns the hover transform.
     <div data-card className="h-full">
       <div
-        className="relative flex h-full flex-col rounded-[28px]"
+        className="relative flex h-full flex-col rounded-[28px] "
         style={{
           backgroundColor: C.bg,
           border: `1px solid ${C.border}`,
@@ -177,7 +177,7 @@ function PlanCard({ plan }) {
         {/* Tag badge */}
         <span
           data-badge
-          className="absolute bg-teal-600 top-5 left-5 text-[12px] sm:text-[13px] md:text-sm font-semibold px-3 py-1 rounded-full"
+          className="absolute bg-teal-600 top-5 left-5 text-[12px] text-white sm:text-[13px] md:text-sm font-semibold px-3 py-1 rounded-full"
           style={{
             background: "linear-gradient(90deg,#50ffaa,#00d4ff)",
             letterSpacing: "0.02em",
@@ -199,7 +199,7 @@ function PlanCard({ plan }) {
             boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
           }}
         >
-          <Icon size={24} color="#062019" strokeWidth={1.75} />
+          <Icon size={24} color="#ffffff" strokeWidth={1.75} />
         </div>
 
         <div className="overflow-hidden flex flex-col flex-1">
