@@ -546,7 +546,7 @@ export default function PopupForm({
               )}
 
               {step === "goal" && (
-                <StepGoal value={form.goal} onChange={setField("goal")} />
+                <StepGoal value={form.goal} onChange={setField("goal")} gender={form.gender} />
               )}
 
               {step === "weight" && (
@@ -1000,7 +1000,8 @@ function StepContact({ form, setField }) {
   );
 }
 
-function StepGoal({ value, onChange }) {
+function StepGoal({ value, onChange, gender }) {
+  const filteredGoals = gender?.toLowerCase() === "male" ?GOALS.slice(0, 2) : GOALS;
   return (
     <div className="flex flex-col">
       <StepHeading
@@ -1015,7 +1016,7 @@ function StepGoal({ value, onChange }) {
         <SelectField
           value={value}
           onChange={onChange}
-          options={GOALS}
+          options={filteredGoals}
           placeholder="Select primary goal"
         />
       </div>
