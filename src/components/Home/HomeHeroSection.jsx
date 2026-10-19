@@ -239,9 +239,12 @@ function PillsBlock() {
   }, []);
 
   return (
-    <div ref={rootRef}>
+    <div
+      ref={rootRef}
+      className="flex flex-col items-center gap-2 sm:gap-3 justify-center text-center"
+    >
       {/* Pills */}
-      <div className="flex flex-col items-start gap-2 sm:gap-3 mb-4 sm:mb-6">
+      <div className="hidden flex-col items-start gap-2 sm:gap-3 mb-4 sm:mb-6">
         {pills.map((pill) => (
           <span
             key={pill.label}
@@ -635,21 +638,21 @@ export default function HomeHeroSection() {
                 </p>
               </div>
             )}
+          </div>
 
-            {/* Pills + CTA */}
-            {pillsVisible && (
+          {/* Pills + CTA — full-width layer so it can be centred on desktop */}
+          {pillsVisible && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-start px-5 sm:justify-center sm:px-12 lg:px-16">
               <div
-                className="absolute left-0"
                 style={{
-                  top: 0,
                   transform: `translateY(${pillsTranslateY}px)`,
                   pointerEvents: "auto",
                 }}
               >
                 <PillsBlock />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Scroll cue */}

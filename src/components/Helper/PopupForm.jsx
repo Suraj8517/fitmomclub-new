@@ -379,7 +379,6 @@ export default function PopupForm({
 
   const bodyType = bmi ? getBodyType(bmi) : null;
 
-  // ---- Per-step validation (every field required) ----
   const codeOk =
     form.countryCode === "other"
       ? CUSTOM_CODE_RE.test(form.customCode)
@@ -424,7 +423,6 @@ export default function PopupForm({
     if (status === "submitting") return;
     if (!STEPS.slice(0, -1).every((s) => stepValid[s])) return;
 
-    // Honeypot tripped: pretend success, send nothing
     if (form.website) {
       setStatus("success");
       return;
@@ -466,17 +464,80 @@ export default function PopupForm({
   if (!isOpen) {
     if (!showFloatingButton) return null;
     return (
-      <button
-        type="button"
-        onClick={openPopup}
-        aria-label={floatingButtonLabel}
-        className="fixed bottom-4 right-4 z-[900] flex items-center gap-2 rounded-full bg-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/30 transition hover:bg-teal-700 active:scale-95 sm:bottom-6 sm:right-6 sm:px-6 sm:py-3.5 sm:text-base"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.6-9.5 9-9.5 9Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
-        {floatingButtonLabel}
-      </button>
+    
+<button
+  type="button"
+  onClick={openPopup}
+  aria-label={floatingButtonLabel}
+  className="fixed bottom-4 right-4 z-900 floating-cta-btn group inline-flex items-center gap-2.5
+    overflow-hidden rounded-full px-6 py-4
+    text-sm sm:text-base font-semibold
+    transition-all duration-300 ease-out
+    hover:-translate-y-1 hover:scale-[1.03]
+    active:scale-95
+    focus-visible:outline-none focus-visible:ring-2
+    focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+  style={{
+    background: "linear-gradient(110deg, #50ffaa, #00d4ff, #50ffaa)",
+    backgroundSize: "200% 100%",
+    color: "#062019",
+    boxShadow: "0 8px 28px rgba(0, 212, 255, 0.22)",
+  }}
+>
+  {/* Animated glow */}
+  <span
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 rounded-full
+      opacity-0 transition-opacity duration-300
+      group-hover:opacity-100"
+    style={{
+      boxShadow: "inset 0 0 18px rgba(255,255,255,0.5)",
+    }}
+  />
+
+  {/* Heart icon */}
+  <svg
+    width="19"
+    height="19"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    className="relative shrink-0 transition-transform duration-300
+      group-hover:scale-110"
+  >
+    <path
+      d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.6-9.5 9-9.5 9Z"
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+
+  <span className="relative whitespace-nowrap">
+    {floatingButtonLabel}
+  </span>
+
+  {/* Arrow */}
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    className="relative transition-transform duration-300
+      group-hover:translate-x-1"
+  >
+    <path
+      d="M5 12h14m-6-6 6 6-6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+</button>
+
     );
   }
 
