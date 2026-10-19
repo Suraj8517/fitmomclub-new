@@ -246,7 +246,8 @@ export default function PopupForm({
   enableRouteChangeTrigger = true,
   routeChangeDelay = 10000,
   showFloatingButton = true,
-  floatingButtonLabel = "Free Assessment",
+  floatingButtonLabel = "Free Body Assessment",
+  popupTitle = "Free Body Assessment", // common title shown on every step
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | submitting | success | error
@@ -464,80 +465,61 @@ export default function PopupForm({
   if (!isOpen) {
     if (!showFloatingButton) return null;
     return (
-    
-<button
-  type="button"
-  onClick={openPopup}
-  aria-label={floatingButtonLabel}
-  className="fixed bottom-4 right-4 z-900 floating-cta-btn group inline-flex items-center gap-2.5
-    overflow-hidden rounded-full px-6 py-4
-    text-sm sm:text-base font-semibold
-    transition-all duration-300 ease-out
-    hover:-translate-y-1 hover:scale-[1.03]
-    active:scale-95
-    focus-visible:outline-none focus-visible:ring-2
-    focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
-  style={{
-    background: "linear-gradient(110deg, #50ffaa, #00d4ff, #50ffaa)",
-    backgroundSize: "200% 100%",
-    color: "#062019",
-    boxShadow: "0 8px 28px rgba(0, 212, 255, 0.22)",
-  }}
->
-  {/* Animated glow */}
-  <span
-    aria-hidden="true"
-    className="pointer-events-none absolute inset-0 rounded-full
-      opacity-0 transition-opacity duration-300
-      group-hover:opacity-100"
-    style={{
-      boxShadow: "inset 0 0 18px rgba(255,255,255,0.5)",
-    }}
-  />
+      <button
+        type="button"
+        onClick={openPopup}
+        aria-label={floatingButtonLabel}
+        className="fixed bottom-4 right-4 z-900 group inline-flex items-center gap-2.5
+          overflow-hidden rounded-full px-6 py-4
+          text-sm sm:text-base font-semibold
+          transition-all duration-300 ease-out
+          hover:-translate-y-1 hover:scale-[1.03]
+          active:scale-95
+          focus-visible:outline-none focus-visible:ring-2
+          focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+        style={{
+          background: "linear-gradient(110deg, #50ffaa, #00d4ff, #50ffaa)",
+          backgroundSize: "200% 100%",
+          color: "#062019",
+          boxShadow: "0 8px 28px rgba(0, 212, 255, 0.22)",
+        }}
+      >
+        {/* Animated glow */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-full
+            opacity-0 transition-opacity duration-300
+            group-hover:opacity-100"
+          style={{
+            boxShadow: "inset 0 0 18px rgba(255,255,255,0.5)",
+          }}
+        />
 
-  {/* Heart icon */}
-  <svg
-    width="19"
-    height="19"
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-    className="relative shrink-0 transition-transform duration-300
-      group-hover:scale-110"
-  >
-    <path
-      d="M12 20s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.6-9.5 9-9.5 9Z"
-      fill="currentColor"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    />
-  </svg>
+       
 
-  <span className="relative whitespace-nowrap">
-    {floatingButtonLabel}
-  </span>
+        <span className="relative whitespace-nowrap">
+          {floatingButtonLabel}
+        </span>
 
-  {/* Arrow */}
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-    className="relative transition-transform duration-300
-      group-hover:translate-x-1"
-  >
-    <path
-      d="M5 12h14m-6-6 6 6-6 6"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-</button>
-
+        {/* Arrow */}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          className="relative transition-transform duration-300
+            group-hover:translate-x-1"
+        >
+          <path
+            d="M5 12h14m-6-6 6 6-6 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
     );
   }
 
@@ -548,7 +530,7 @@ export default function PopupForm({
       className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label="Body assessment"
+      aria-label={popupTitle}
     >
       {/* Overlay */}
       <div
@@ -586,6 +568,14 @@ export default function PopupForm({
           >
             <IconX className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* Common title (shown on every step + success screen) */}
+        <div className="shrink-0 px-5 pb-1 sm:px-8">
+          <p className="inline-flex items-center gap-2 rounded-full bg-teal-600/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-teal-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-600" />
+            {popupTitle}
+          </p>
         </div>
 
         {/* Content (scrolls inside the card) */}
@@ -1062,7 +1052,7 @@ function StepContact({ form, setField }) {
 }
 
 function StepGoal({ value, onChange, gender }) {
-  const filteredGoals = gender?.toLowerCase() === "male" ?GOALS.slice(0, 2) : GOALS;
+  const filteredGoals = gender?.toLowerCase() === "male" ? GOALS.slice(0, 2) : GOALS;
   return (
     <div className="flex flex-col">
       <StepHeading
