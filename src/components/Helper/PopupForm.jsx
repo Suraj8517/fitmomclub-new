@@ -498,7 +498,7 @@ export default function PopupForm({
        
 
         <span className="relative whitespace-nowrap">
-          {floatingButtonLabel}
+          Free Body Assessment
         </span>
 
         {/* Arrow */}
