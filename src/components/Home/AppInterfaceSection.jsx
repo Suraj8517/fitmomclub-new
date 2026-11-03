@@ -1,20 +1,38 @@
-import { useLayoutEffect, useRef, forwardRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import logo from "../../assets/home/fitmom.png";
 import phoneFrame from "../../assets/home/mockup.png";
 // NOTE: point this at your actual mockup screenshot asset
 import mockupImage from "../../assets/home/mockup.png";
+import { Camera, Search, Plus } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// ── Calorie + steps goals ────────────────────────────────────────────────────
+const DAILY_GOAL   = 2000;
+const STEPS_GOAL   = 10400;
+const STEPS_TARGET = 504;   // value the steps count-up reaches
+const ACTIVE_DAY   = 1;     // 0 = S, 1 = M, 2 = T ...
+
+// ── Health tracker card ──────────────────────────────────────────────────────
+const HEALTH_VALUE = 19.0;   // value the count-up reaches
+
+// ── Cycle tracker + emotion cards ────────────────────────────────────────────
+const CYCLE_DAY    = 1;
+const CYCLE_LENGTH = 28;
+const NEXT_PERIOD  = "30 Nov";
+const EMOTION_DAY  = 0;      // 0 = M, 1 = T, 2 = W ... (highlighted bar)
+
+// ── Weight card ──────────────────────────────────────────────────────────────
+const WEIGHT_START  = 42.0;
+const WEIGHT_NOW    = 63.8;   // value the count-up reaches
+const WEIGHT_TARGET = 70.0;
+
 // ── Scroll section height ────────────────────────────────────────────────────
-// A little longer than before so each phase (spread → grid → implode → reveal)
-// gets more scroll distance and feels less rushed.
 const SCROLL_LENGTH_VH = 300;
 
-// ── Scrub smoothing (seconds the visuals take to catch up with the scrollbar) ─
-// Replaces the old hand-rolled RAF spring. Higher = silkier / laggier.
+// ── Scrub smoothing ──────────────────────────────────────────────────────────
 const SCROLL_SCRUB = 1.1;
 const ENTRY_SCRUB  = 0.8;
 
@@ -25,19 +43,20 @@ const PAD     = 24;
 const SCR_W   = GRID_W - PAD * 2;
 const SCR_H   = GRID_H - PAD * 2;
 
-// Horizontal gap between the two columns (rows 2 & 3) — reduce this to tighten.
 const COL_GAP = 2;
-// Vertical gap between rows, and between stacked pills in the right column.
 const ROW_GAP = 5;
 
-const COL     = (SCR_W - COL_GAP-80) / 2;
+const COL     = (SCR_W - COL_GAP - 80) / 2;
 
+// Row heights (top → bottom):
+// yoga (full) → steps (full) → health | weight → cycle | emotion
 const PHOTO_H = 188;
+const STEPS_H = 96;
 const ROW2_H  = 168;
-const ROW3_H  = 154;
-const MED_H   = 62;
+const ROW3_H  = 180;
 const TOP_PAD = Math.floor(
-  (SCR_H - (PHOTO_H + ROW_GAP + ROW2_H + ROW_GAP + ROW3_H + ROW_GAP + MED_H)) / 2
+  (SCR_H -
+    (PHOTO_H + ROW_GAP + STEPS_H + ROW_GAP + ROW2_H + ROW_GAP + ROW3_H)) / 2
 );
 
 const DESIGN_W = 390;
@@ -51,21 +70,21 @@ const MOBILE_UI_FADE_START = 0.58;
 const MOBILE_UI_FADE_END   = 0.82;
 
 // ── Final phase: "implode → flash → iris reveal" transition ────────────────
-const IMPLODE_START      = 0.80;  // when the first card begins collapsing
-const IMPLODE_END        = 0.95;  // when the first card finishes collapsing
-const IMPLODE_STAGGER    = 0.012; // per-card delay (in `p` units), keyed to card order
-const IMPLODE_BLUR_PX    = 14;    // max blur applied to a card mid-implode
-const IMPLODE_PULL       = 0.65;  // fraction cards get pulled toward center
+const IMPLODE_START      = 0.80;
+const IMPLODE_END        = 0.95;
+const IMPLODE_STAGGER    = 0.012;
+const IMPLODE_BLUR_PX    = 14;
+const IMPLODE_PULL       = 0.65;
 
-const FLASH_CENTER       = 0.92;  // where in scroll progress the flash peaks
-const FLASH_HALF_WIDTH   = 0.05;  // bell-curve width around FLASH_CENTER
-const FLASH_PEAK_OPACITY = 0.5;   // max opacity of the flash overlay
+const FLASH_CENTER       = 0.92;
+const FLASH_HALF_WIDTH   = 0.05;
+const FLASH_PEAK_OPACITY = 0.5;
 
-const REVEAL_START       = 0.90;  // mockup iris begins opening
-const REVEAL_END         = 1.0;   // mockup iris fully open, in focus
-const REVEAL_BLUR_PX     = 10;    // mockup starts this blurred, resolves to sharp
+const REVEAL_START       = 0.90;
+const REVEAL_END         = 1.0;
+const REVEAL_BLUR_PX     = 10;
 
-// ── Utility: linear interpolate ──────────────────────────────────────────────
+// ── Utility ──────────────────────────────────────────────────────────────────
 const lerp = (a, b, t) => a + (b - a) * t;
 const fmt  = (n) => Math.round(n).toLocaleString();
 
@@ -95,53 +114,99 @@ function IconBadge({ bg, color, children, size = 28, live = false }) {
   );
 }
 
-// Marker slides via ref (imperative — avoids React re-render churn)
-const GradientBar = forwardRef(function GradientBar({ initialValue = 0 }, ref) {
-  return (
-    <div className="relative w-full h-1.5 rounded-full bg-neutral-800 overflow-visible">
-      <div
-        className="absolute inset-y-0 left-0 rounded-full"
-        style={{
-          width: "100%",
-          background:
-            "linear-gradient(90deg,#38BDF8 0%,#34D399 22%,#FBBF24 55%,#FB923C 78%,#EF4444 100%)",
-        }}
-      />
-      <div
-        ref={ref}
-        className="absolute top-1/2 w-2 h-4 rounded-full bg-white -translate-y-1/2 shadow-[0_0_6px_rgba(255,255,255,0.6)]"
-        style={{ left: `calc(${initialValue * 100}% - 6px)`, willChange: "left" }}
-      />
-    </div>
-  );
-});
-
 const Icons = {
   scale: (
-    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="4" />
-      <path d="M12 8v4l2.5 2.5" strokeLinecap="round" />
-    </svg>
+   
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#000000"/>
+
+  <path
+    d="M80 138
+       C170 34 342 34 432 138
+       L354 236
+       H158 Z"
+    fill="#21DA7C"
+  />
+
+  <path
+    d="M256 217 L335 98 L308 217 Z"
+    fill="#000000"
+  />
+</svg>
+
   ),
-  ratio: (
-    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor">
-      <circle cx="7" cy="7" r="4" />
-      <circle cx="17" cy="17" r="4" opacity="0.5" />
-    </svg>
+  cycle: (
+    
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M32 48 C17 38 19 20 32 8 C45 20 47 38 32 48Z"/>
+  <path d="M32 48 C15 44 7 32 9 22 C22 25 30 35 32 48Z"/>
+  <path d="M32 48 C49 44 57 32 55 22 C42 25 34 35 32 48Z"/>
+</svg>
+
+  ),
+  emotion: (
+   
+<svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+
+  <circle cx="12" cy="4.5" r="2.1"/>
+
+  
+  <path d="
+    M8.2 8.1
+    C7.2 8.1 6.5 8.8 6.1 10
+    L5.2 12.5
+    C4.8 13.5 3.8 14 2.9 13.5
+    C2.1 13.1 1.2 13.4 1.1 14.3
+    C1 15.2 1.8 15.8 2.8 16
+    C5.1 16.4 6.7 15.2 7.7 13.4
+    L8.1 12.6
+    L8.1 14.9
+    C8.1 15.9 8.7 16.7 9.5 17.2
+    L12 18.2
+    L14.5 17.2
+    C15.3 16.7 15.9 15.9 15.9 14.9
+    L15.9 12.6
+    L16.3 13.4
+    C17.3 15.2 18.9 16.4 21.2 16
+    C22.2 15.8 23 15.2 22.9 14.3
+    C22.8 13.4 21.9 13.1 21.1 13.5
+    C20.2 14 19.2 13.5 18.8 12.5
+    L17.9 10
+    C17.5 8.8 16.8 8.1 15.8 8.1
+    Z
+  "/>
+
+  
+  <path d="
+    M12 17.5
+    C9.9 16.3 7.4 15.5 5.5 16.3
+    C3.9 17 3.6 18.5 4.6 19.5
+    C5.5 20.4 8.1 20.7 10.2 20.2
+    C10.8 20.1 11.4 19.8 12 19.5
+    C12.6 19.8 13.2 20.1 13.8 20.2
+    C15.9 20.7 18.5 20.4 19.4 19.5
+    C20.4 18.5 20.1 17 18.5 16.3
+    C16.6 15.5 14.1 16.3 12 17.5
+    Z
+  "/>
+</svg>
+
   ),
   moon: (
     <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor">
       <path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z" />
     </svg>
   ),
-  drop: (
-    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor">
-      <path d="M12 2s7 8.2 7 13a7 7 0 1 1-14 0c0-4.8 7-13 7-13Z" />
+  bolt: (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
     </svg>
   ),
-  heartbeat: (
-    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M3 12h4l2-6 4 12 2-6h6" strokeLinecap="round" strokeLinejoin="round" />
+  stethoscope: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3v6a4 4 0 0 0 8 0V3" />
+      <path d="M10 13v1a5 5 0 0 0 10 0v-2" />
+      <circle cx="20" cy="10" r="2" />
     </svg>
   ),
   chevron: (
@@ -171,26 +236,26 @@ export default function AppInterfaceSection() {
 
   // ── Dynamic text / visual nodes for the dark cards ─────────────────────────
   const weightNodeRef     = useRef(null);
-  const sleepHoursNodeRef = useRef(null);
-  const emotionalNodeRef  = useRef(null);
+  const weightDeltaRef    = useRef(null);
+  const healthValueRef    = useRef(null);
 
   const calorieIntakeRef  = useRef(null);
+  const kcalLeftRef       = useRef(null);
+  const fibreRef          = useRef(null);
   const workoutBurnRef    = useRef(null);
-  const stepsBurnRef      = useRef(null);
-  const waterMlRef        = useRef(null);
-  const whrValueRef       = useRef(null);
-  const bmiValueRef       = useRef(null);
+
+  // Steps card
+  const stepsCountRef     = useRef(null);
+  const stepsBarRef       = useRef(null);
+  const stepsCalRef       = useRef(null);
 
   const ringRefs         = useRef([]);
   const weightBarRef     = useRef(null);
-  const whrBarRef        = useRef(null);
-  const sleepGoalBarRef  = useRef(null);
 
   // ── LAYOUT CONSTANTS derived from grid ─────────────────────────────────────
-  const row2Y  = TOP_PAD + PHOTO_H + ROW_GAP;
+  const stepsY = TOP_PAD + PHOTO_H + ROW_GAP;
+  const row2Y  = stepsY + STEPS_H + ROW_GAP;
   const row3Y  = row2Y + ROW2_H + ROW_GAP;
-  const medY   = row3Y + ROW3_H + ROW_GAP;
-  const pill3H = (ROW2_H - ROW_GAP * 2) / 3;
 
   const GROUP_W      = COL * 2 + COL_GAP;
   const GROUP_OFFSET = (SCR_W - GROUP_W) / 2;
@@ -204,79 +269,62 @@ export default function AppInterfaceSection() {
   });
 
   const F = {
-    yoga:      sc(SCR_W / 2,         TOP_PAD + PHOTO_H / 2),
-    sleep:     sc(leftX + COL / 2,   row2Y + ROW2_H / 2),
-    steps:     sc(rightX + COL / 2,  row2Y + pill3H / 2),
-    ready:     sc(rightX + COL / 2,  row2Y + pill3H + ROW_GAP + pill3H / 2),
-    sleepPill: sc(rightX + COL / 2,  row2Y + (pill3H + ROW_GAP) * 2 + pill3H / 2),
-    heart:     sc(leftX + COL / 2,   row3Y + ROW3_H / 2),
-    run:       sc(rightX + COL / 2,  row3Y + ROW3_H / 2),
-    med:       sc(SCR_W / 2,         medY + MED_H / 2),
+    yoga:  sc(SCR_W / 2,         TOP_PAD + PHOTO_H / 2),
+    steps: sc(SCR_W / 2,         stepsY + STEPS_H / 2),
+    sleep: sc(leftX + COL / 2,   row2Y + ROW2_H / 2),
+    heart: sc(rightX + COL / 2,  row2Y + ROW2_H / 2),
+    cycle:   sc(leftX + COL / 2,   row3Y + ROW3_H / 2),
+    emotion: sc(rightX + COL / 2,  row3Y + ROW3_H / 2),
   };
 
   const S_desktop = {
-    yoga:      { x: -50, y: -240 },
-    sleep:     { x: -70, y:  -20 },
-    steps:     { x:  50, y: -280 },
-    ready:     { x:  40, y: -175 },
-    sleepPill: { x:  80, y:  -70 },
-    heart:     { x: -60, y:  220 },
-    run:       { x:  80, y:  120 },
-    med:       { x:   60, y:  250 },
+    yoga:  { x: -50, y: -240 },
+    steps: { x:  50, y: -130 },
+    sleep: { x: -70, y:  -20 },
+    heart: { x:  80, y:  120 },
+    cycle:   { x: -60, y:  230 },
+    emotion: { x:  40, y:  280 },
   };
 
   const S_mobile = {
-    yoga:      { x:  -110, y: -310 },
-    sleep:     { x: -285, y:  -60 },
-    steps:     { x:  255, y: -290 },
-    ready:     { x:  260, y: -180 },
-    sleepPill: { x:  255, y:  -75 },
-    heart:     { x: -260, y:  200 },
-    run:       { x:  240, y:  130 },
-    med:       { x:   110, y: 310 },
+    yoga:  { x: -110, y: -310 },
+    steps: { x:  180, y: -190 },
+    sleep: { x: -285, y:  -60 },
+    heart: { x:  240, y:  130 },
+    cycle:   { x: -260, y:  220 },
+    emotion: { x:  300, y:  290 },
   };
 
   const FINAL_SIZES = {
-    yoga:      { w: 350,  h: 188 },
-    sleep:     { w: 175,    h: 168  },
-    steps:     { w: 175,    h: pill3H  },
-    ready:     { w: 175,    h: pill3H  },
-    sleepPill: { w: 175,    h: pill3H  },
-    heart:     { w: 175,    h: ROW3_H  },
-    run:       { w: 175,    h: ROW3_H  },
-    med:       { w: 350,  h: MED_H   },
+    yoga:  { w: 350, h: PHOTO_H },
+    steps: { w: 350, h: STEPS_H },
+    sleep: { w: 175, h: ROW2_H },
+    heart: { w: 175, h: ROW2_H },
+    cycle:   { w: 175, h: ROW3_H },
+    emotion: { w: 175, h: ROW3_H },
   };
 
   const SPREAD_SIZES = {
-    yoga:      { w: 300, h: 165 },
-    sleep:     { w: 165, h: 160 },
-    steps:     { w: 165, h: 52  },
-    ready:     { w: 165, h: 52  },
-    sleepPill: { w: 165, h: 52  },
-    heart:     { w: 165, h: 145 },
-    run:       { w: 165, h: 145 },
-    med:       { w: 300, h: 52  },
+    yoga:  { w: 300, h: 165 },
+    steps: { w: 300, h: 84 },
+    sleep: { w: 165, h: 160 },
+    heart: { w: 165, h: 160 },
+    cycle:   { w: 165, h: 170 },
+    emotion: { w: 165, h: 170 },
   };
 
-  // ─── GSAP ScrollTrigger scrub (replaces the old RAF + spring loop) ─────────
-  // Two scrubbed tweens drive a tiny state object:
-  //   state.entry  0→1 as the section rises into the viewport
-  //   state.p      0→1 across the pinned scroll length
-  // render() paints everything from those two numbers. It only runs when the
-  // scrub moves, so there's no idle per-frame loop.
+  // ─── GSAP ScrollTrigger scrub ──────────────────────────────────────────────
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return undefined;
 
     const state  = { p: 0, entry: 0 };
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const KEYS   = ["yoga","sleep","steps","ready","sleepPill","heart","run","med"];
+    const KEYS   = ["yoga", "steps", "sleep", "heart", "cycle", "emotion"];
 
-    // Logo entrance — tied to how far the stage has risen (state.entry), not to
-    // a separate trigger, so it always plays while the logo is actually on
-    // screen. It never touches opacity, so the logo can't end up hidden.
-    const LOGO_IN  = 0.5;  // play once the stage is this far up
-    const LOGO_OUT = 0.25; // reset once it has dropped back below this
+    // Logo entrance — tied to state.entry. Never touches opacity.
+    const LOGO_IN  = 0.5;
+    const LOGO_OUT = 0.25;
     const logoEl   = logoRef.current;
     let logoTl     = null;
     let logoPlayed = false;
@@ -377,7 +425,7 @@ export default function AppInterfaceSection() {
 
       const yogaInner = cardRefs.current["yoga_inner"];
       if (yogaInner) {
-        yogaInner.style.borderRadius = `${lerp(16, 12, p)}px`;
+        yogaInner.style.borderRadius = `${lerp(20, 14, p)}px`;
       }
 
       // ── Phone frame fade ──────────────────────────────────────────────────
@@ -404,7 +452,7 @@ export default function AppInterfaceSection() {
         cardsGroupRef.current.style.pointerEvents = groupDone ? "none" : "auto";
       }
 
-      // ── Flash: soft radial pulse that peaks right before the reveal ──────
+      // ── Flash ─────────────────────────────────────────────────────────────
       if (flashRef.current) {
         const dist = Math.abs(p - FLASH_CENTER);
         const flashT = Math.max(0, 1 - dist / FLASH_HALF_WIDTH);
@@ -417,7 +465,7 @@ export default function AppInterfaceSection() {
           Math.max((p - REVEAL_START) / (REVEAL_END - REVEAL_START), 0),
           1
         );
-        const t = rt * rt * (3 - 2 * rt); // smoothstep
+        const t = rt * rt * (3 - 2 * rt);
 
         const irisPct = lerp(0, 75, t);
         mockupImageRef.current.style.opacity   = t < 0.02 ? 0 : 1;
@@ -427,50 +475,50 @@ export default function AppInterfaceSection() {
       }
 
       // ── Core stat text values ─────────────────────────────────────────────
-      const weightKg   = lerp(70, 68, p).toFixed(1);
-      const sleepHours = Math.round(lerp(6, 8, p));
-      const mood       = p > 0.6 ? "Calm" : p > 0.3 ? "Okay" : "Tracking";
+      const healthVal  = lerp(0, HEALTH_VALUE, p).toFixed(2);
 
-      if (weightNodeRef.current)     weightNodeRef.current.textContent     = weightKg;
-      if (sleepHoursNodeRef.current) sleepHoursNodeRef.current.textContent = sleepHours;
-      if (emotionalNodeRef.current)  emotionalNodeRef.current.textContent  = mood;
+      if (healthValueRef.current)    healthValueRef.current.textContent    = healthVal;
 
-      // ── Increasing dashboard stats, all driven by scroll progress p ───────
-      const calorieIntake = fmt(lerp(0, 1200, p));
+      // ── Calories ──────────────────────────────────────────────────────────
+      const consumedRaw   = lerp(0, 1200, p);
+      const calorieIntake = fmt(consumedRaw);
+      const kcalLeft      = fmt(Math.max(DAILY_GOAL - consumedRaw, 0));
+      const fibreG        = Math.round(lerp(0, 25, p));
       const workoutBurn   = fmt(lerp(0, 500, p));
-      const stepsBurn     = fmt(lerp(0, 500, p));
-      const waterMl       = fmt(lerp(0, 5000, p));
-      const whrValue      = lerp(0.50, 0.80, p).toFixed(2);
-      const bmiValue      = lerp(18.0, 23.14, p).toFixed(2);
 
-      if (calorieIntakeRef.current) calorieIntakeRef.current.textContent = `${calorieIntake} / 1000`;
+      if (calorieIntakeRef.current) calorieIntakeRef.current.textContent = calorieIntake;
+      if (kcalLeftRef.current)      kcalLeftRef.current.textContent      = kcalLeft;
+      if (fibreRef.current)         fibreRef.current.textContent         = fibreG;
       if (workoutBurnRef.current)   workoutBurnRef.current.textContent   = workoutBurn;
-      if (stepsBurnRef.current)     stepsBurnRef.current.textContent     = stepsBurn;
-      if (waterMlRef.current)       waterMlRef.current.textContent       = `${waterMl} ml`;
-      if (whrValueRef.current)      whrValueRef.current.textContent      = whrValue;
-      if (bmiValueRef.current)      bmiValueRef.current.textContent      = bmiValue;
 
-      // ── Calorie rings fill up as the section scrolls ──────────────────────
-      const ringTargets = [0.72, 0.5, 0.5];
-      ringRefs.current.forEach((circle, i) => {
-        if (!circle) return;
-        const pct = ringTargets[i] * p;
-        circle.style.strokeDashoffset = `${RING_CIRC * (1 - pct)}`;
-      });
-
-      // ── Gradient bar markers slide into position ──────────────────────────
-      const weightBarValue = lerp(0, 0.42, p);
-      const whrBarValue    = lerp(0, 0.18, p);
-      if (weightBarRef.current) weightBarRef.current.style.left = `calc(${weightBarValue * 100}% - 6px)`;
-      if (whrBarRef.current)    whrBarRef.current.style.left    = `calc(${whrBarValue * 100}% - 6px)`;
-
-      // ── Sleep goal bar fills 0 → 100% ─────────────────────────────────────
-      if (sleepGoalBarRef.current) {
-        sleepGoalBarRef.current.style.width = `${lerp(0, 100, p)}%`;
+      // ── Calorie ring: fills as consumed approaches the daily goal ─────────
+      const ring = ringRefs.current[0];
+      if (ring) {
+        const progress = Math.min(consumedRaw / DAILY_GOAL, 1);
+        ring.style.strokeDashoffset = `${RING_CIRC * (1 - progress)}`;
       }
+
+      // ── Steps today ───────────────────────────────────────────────────────
+      const stepsNow = Math.round(lerp(0, STEPS_TARGET, p));
+      const stepsCal = Math.round(stepsNow * 0.04);
+      const stepsKm  = (stepsNow * 0.0008).toFixed(1);
+
+      if (stepsCountRef.current) stepsCountRef.current.textContent = stepsNow.toLocaleString();
+      if (stepsCalRef.current)   stepsCalRef.current.textContent   = `${stepsCal} cal · ${stepsKm} km`;
+      if (stepsBarRef.current) {
+        stepsBarRef.current.style.width = `${Math.min(stepsNow / STEPS_GOAL, 1) * 100}%`;
+      }
+
+      // ── Weight card ───────────────────────────────────────────────────────
+      const weightCur = lerp(WEIGHT_START, WEIGHT_NOW, p);
+      const weightPct = ((weightCur - WEIGHT_START) / (WEIGHT_TARGET - WEIGHT_START)) * 100;
+
+      if (weightNodeRef.current)  weightNodeRef.current.textContent  = weightCur.toFixed(1);
+      if (weightDeltaRef.current) weightDeltaRef.current.textContent = `+${(weightCur - WEIGHT_START).toFixed(1)} kg from start`;
+      if (weightBarRef.current)   weightBarRef.current.style.width   = `${Math.min(Math.max(weightPct, 0), 100)}%`;
+
     };
 
-    // One named handler, so cleanup removes exactly what was added.
     const onResize = () => {
       computeScale();
       render();
@@ -479,10 +527,9 @@ export default function AppInterfaceSection() {
 
     if (!reduce) resetLogo();
     computeScale();
-    render(); // first paint: stage parked below the fold, everything at 0
+    render();
 
     const ctx = gsap.context(() => {
-      // Entry: stage rises in as the section scrolls up into view.
       gsap.to(state, {
         entry: 1,
         ease: "none",
@@ -495,7 +542,6 @@ export default function AppInterfaceSection() {
         },
       });
 
-      // Main: the pinned (sticky) scroll length drives everything else.
       gsap.to(state, {
         p: 1,
         ease: "none",
@@ -552,7 +598,7 @@ export default function AppInterfaceSection() {
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
 
-        {/* Single phone frame (the duplicate inside the scaler was removed). */}
+        {/* Single phone frame */}
         <img
           ref={phoneFrameRef}
           src={phoneFrame}
@@ -581,7 +627,6 @@ export default function AppInterfaceSection() {
               className="absolute pointer-events-none w-[150px] mt:w-[220px] mt:h-[300px]"
               style={{ willChange: "transform, opacity", backfaceVisibility: "hidden" }}
             >
-              {/* Inner wrapper = GSAP entrance; band above = scroll-driven. */}
               <div ref={logoRef} className="w-full h-full">
                 <img src={logo} className="w-full h-full object-contain " alt="FitMom logo" />
               </div>
@@ -589,174 +634,297 @@ export default function AppInterfaceSection() {
 
             <div ref={cardsGroupRef} style={{ willChange: "opacity" }}>
 
-              {/* ── DAILY CALORIE TRACKER (rings fill up live) ── */}
+              {/* ── DAILY CALORIE TRACKER ── */}
               <CardGPU name="yoga">
                 <div
                   ref={el => { cardRefs.current["yoga_inner"] = el; }}
-                  className="w-full h-full bg-neutral-900 flex flex-col justify-center px-6 py-4 border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
-                  style={{ borderRadius: 16 }}
+                  className="w-full h-full flex flex-col justify-between gap-2 px-4 py-3 border border-neutral-800 transition-colors duration-300 hover:border-neutral-700 overflow-hidden"
+                  style={{
+                    borderRadius: 20,
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #5b6349 0%, rgba(138,154,106,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                
+                  }}
                 >
-                  <p className="text-sm text-neutral-300 font-semibold mb-3">Track your Daily Calorie</p>
-                  <div className="flex items-center justify-between flex-1">
-                    {[
-                      { label: "Calories Intake", ref: calorieIntakeRef, unit: "Kcal", color: "#2DD4BF", emoji: "🥗" },
-                      { label: "Workout",         ref: workoutBurnRef,   unit: "Kcal Burned", color: "#F87171", emoji: "⚡️" },
-                      { label: "Steps",           ref: stepsBurnRef,     unit: "Kcal Burned", color: "#FB923C", emoji: "👟" },
-                    ].map((ring, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1.5 flex-1 transition-transform duration-300 hover:scale-105">
-                        <div className="relative w-20 h-20">
-                          <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
-                            <circle cx="20" cy="20" r="17" fill="none" stroke="#2A2A2E" strokeWidth="2" />
-                            <circle
-                              ref={el => { ringRefs.current[i] = el; }}
-                              cx="20" cy="20" r="17" fill="none" stroke={ring.color} strokeWidth="2"
-                              strokeDasharray={`${RING_CIRC}`}
-                              strokeDashoffset={`${RING_CIRC}`}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-2xl">{ring.emoji}</span>
+                  {/* TOP: ring + stats */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 shrink-0">
+                      <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
+                        <circle cx="20" cy="20" r="17" fill="none" stroke="#3a3f2e" strokeWidth="2.5" />
+                        <circle
+                          ref={el => { ringRefs.current[0] = el; }}
+                          cx="20" cy="20" r="17" fill="none" stroke="#8a9a6a" strokeWidth="2.5"
+                          strokeDasharray={`${RING_CIRC}`}
+                          strokeDashoffset={`${RING_CIRC}`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span ref={kcalLeftRef} className="text-lg font-light text-neutral-300 leading-none">
+                          {DAILY_GOAL.toLocaleString()}
+                        </span>
+                        <span className="text-[7px] tracking-widest text-neutral-500 mt-0.5">KCAL LEFT</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col">
+                      {[
+                        { label: "Consumed", ref: calorieIntakeRef, unit: "" },
+                        { label: "Burned",   ref: workoutBurnRef,   unit: "" },
+                        { label: "Fibre",    ref: fibreRef,         unit: " g" },
+                      ].map((row, i, arr) => (
+                        <div
+                          key={row.label}
+                          className={`flex items-center justify-between py-1 ${i < arr.length - 1 ? "border-b border-neutral-800" : ""}`}
+                        >
+                          <span className="text-[11px] text-neutral-400">{row.label}</span>
+                          <span className="text-sm font-semibold text-white leading-none">
+                            <span ref={row.ref}>0</span>{row.unit}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-neutral-300 text-center leading-tight font-medium">{ring.label}</p>
-                        <p className="text-[10px] font-bold text-center leading-tight" style={{ color: ring.color }}>
-                          <span ref={ring.ref}>0</span> <span className="text-neutral-500 font-medium">{ring.unit}</span>
-                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* MACROS */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "Protein", color: "#F87171", value: 0, goal: 120 },
+                      { label: "Carbs",   color: "#FB923C", value: 0, goal: 240 },
+                      { label: "Fat",     color: "#60A5FA", value: 0, goal: 53  },
+                    ].map(m => (
+                      <div key={m.label}>
+                        <p className="text-[10px] font-medium leading-tight" style={{ color: m.color }}>{m.label}</p>
+                        <p className="text-[10px] font-semibold text-white leading-tight">{m.value} / {m.goal} g</p>
+                        <div className="h-[3px] rounded-full bg-neutral-800 mt-1 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min((m.value / m.goal) * 100, 100)}%`, background: m.color }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ACTION BUTTONS */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "Scan food", icon: <Camera size={13} className="text-neutral-400" /> },
+                      { label: "Search",    icon: <Search size={13} className="text-orange-400" /> },
+                      { label: "Log meal",  icon: <Plus size={13} className="text-blue-400" /> },
+                    ].map(btn => (
+                      <button
+                        key={btn.label}
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-neutral-800 bg-white/[0.02] text-[10px] text-neutral-200 font-medium transition-colors duration-200 hover:bg-white/[0.06] hover:border-neutral-700"
+                      >
+                        {btn.icon}
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardGPU>
+
+              {/* ── STEPS TODAY (full width, directly below the calorie card) ── */}
+              <CardGPU name="steps">
+                <div
+                  className="w-full h-full rounded-2xl px-3.5 py-2.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
+                   style={{
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #734520 0%, rgba(138,154,106,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                  }}
+                >
+                  {/* header: icon + title, stats on the right */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <IconBadge bg="rgba(251,146,60,0.18)" color="#FB923C" size={26}>{Icons.bolt}</IconBadge>
+                      <p className="text-[12px] text-neutral-400 font-medium">Steps Today</p>
+                    </div>
+                    <p ref={stepsCalRef} className="text-[11px] text-orange-400 font-medium">0 cal · 0.0 km</p>
+                  </div>
+
+                  {/* count (left) + week dots (right) */}
+                  <div className="flex items-end justify-between">
+                    <div className="flex items-baseline gap-1.5">
+                      <span ref={stepsCountRef} className="text-3xl font-medium text-white leading-none">0</span>
+                      <span className="text-[11px] text-neutral-500">/ {STEPS_GOAL.toLocaleString()}</span>
+                    </div>
+
+                    <div className="flex gap-2.5">
+                      {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                        <div key={i} className="flex flex-col items-center gap-0.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${i === ACTIVE_DAY ? "bg-orange-400" : "bg-neutral-700"}`}
+                          />
+                          <span className={`text-[8px] leading-none ${i === ACTIVE_DAY ? "text-orange-300" : "text-neutral-500"}`}>
+                            {d}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* progress bar */}
+                  <div className="w-full h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                    <div
+                      ref={stepsBarRef}
+                      className="h-full rounded-full bg-orange-400"
+                      style={{ width: "0%" }}
+                    />
+                  </div>
+                </div>
+              </CardGPU>
+
+              {/* ── HEALTH TRACKER ── */}
+              <CardGPU name="sleep">
+                <div
+                  className="w-full h-full rounded-2xl p-3.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
+                  style={{
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #5b6349 0%, rgba(138,154,106,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                  }}
+                >
+                  {/* header: sage badge + title */}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "#b9c79a", color: "#1c2415" }}
+                    >
+                      {Icons.stethoscope}
+                    </div>
+                    <p className="text-[13px] text-neutral-300 font-medium">Health Tracker</p>
+                  </div>
+
+                  {/* value + marker name */}
+                  <div>
+                    <span ref={healthValueRef} className="text-3xl font-medium text-white leading-none">0.00</span>
+                    <p className="text-[11px] text-neutral-500 mt-1">AST (SGOT)</p>
+                  </div>
+
+                  {/* outlined action button */}
+                  <button
+                    className="w-full flex items-center justify-center gap-1 py-2 rounded-xl border text-[11px] font-medium transition-colors duration-200 hover:bg-white/[0.04]"
+                    style={{ borderColor: "rgba(138,154,106,0.45)", color: "#8a9a6a" }}
+                  >
+                    Open trackers
+                    <span style={{ color: "#8a9a6a" }}>{Icons.chevron}</span>
+                  </button>
+                </div>
+              </CardGPU>
+
+              {/* ── WEIGHT ── */}
+              <CardGPU name="heart">
+                <div
+                  className="w-full h-full rounded-2xl p-3.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
+                  style={{
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #236945 0%, rgba(34,197,94,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#21DA7C] text-white flex items-center justify-center shrink-0 p-1">
+                      {Icons.scale}
+                    </div>
+                    <p className="text-[13px] text-neutral-300 font-medium">Weight</p>
+                  </div>
+
+                  <div className="flex items-baseline gap-1">
+                    <span ref={weightNodeRef} className="text-3xl font-medium text-white leading-none">
+                      {WEIGHT_START.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-neutral-400">kg</span>
+                  </div>
+
+                  <p className="text-[11px] text-neutral-500">Target {WEIGHT_TARGET.toFixed(1)} kg</p>
+
+                  <div className="w-full h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                    <div
+                      ref={weightBarRef}
+                      className="h-full rounded-full bg-[#21DA7C]"
+                      style={{ width: "0%" }}
+                    />
+                  </div>
+
+                  <p ref={weightDeltaRef} className="text-[11px] font-semibold text-[#21DA7C]">
+                    +0.0 kg from start
+                  </p>
+                </div>
+              </CardGPU>
+
+              {/* ── CYCLE TRACKER ── */}
+              <CardGPU name="cycle">
+                <div
+                  className="w-full h-full rounded-2xl p-3.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
+                  style={{
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #49237d 0%, rgba(124,58,237,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center shrink-0">
+                      {Icons.cycle}
+                    </div>
+                    <p className="text-[13px] text-neutral-300 font-medium">Cycle Tracker</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-medium text-white leading-none">Day {CYCLE_DAY}</span>
+                      <span className="text-[12px] text-neutral-400">/ {CYCLE_LENGTH}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 mt-2">Fertile Window</p>
+                  </div>
+
+                  <div className="w-full rounded-full bg-violet-600 text-white text-[11px] font-semibold text-center py-2">
+                    Next period · {NEXT_PERIOD}
+                  </div>
+                </div>
+              </CardGPU>
+
+              {/* ── EMOTION ── */}
+              <CardGPU name="emotion">
+                <div
+                  className="w-full h-full rounded-2xl p-3.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-colors duration-300 hover:border-neutral-700"
+                  style={{
+                    background:
+                      "radial-gradient(120% 80% at 0% 0%, #661e45 0%, rgba(244,114,182,0) 55%), linear-gradient(160deg, #1c1c1c 0%, #121212 100%)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-pink-300 text-pink-950 flex items-center justify-center shrink-0">
+                      {Icons.emotion}
+                    </div>
+                    <p className="text-[13px] text-neutral-300 font-medium">Emotion</p>
+                  </div>
+
+                  <div>
+                    <p className="text-[26px] font-medium text-white leading-[1.05]">
+                      Log<br />Emotion
+                    </p>
+                    <p className="text-[10px] text-neutral-500 mt-1.5 leading-snug">
+                      Tap to log how you feel today
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between">
+                    {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <span className={`text-[9px] leading-none ${i === EMOTION_DAY ? "text-pink-300" : "text-neutral-500"}`}>
+                          {d}
+                        </span>
+                        <span
+                          className={`h-[3px] w-4 rounded-full ${i === EMOTION_DAY ? "bg-pink-300" : "bg-neutral-700"}`}
+                        />
                       </div>
                     ))}
                   </div>
                 </div>
               </CardGPU>
 
-              {/* ── SLEEP ── */}
-              <CardGPU name="sleep">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl p-3.5 flex flex-col justify-between overflow-hidden border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <IconBadge bg="rgba(56,189,248,0.15)" color="#38BDF8" size={32}>{Icons.moon}</IconBadge>
-                      <p className="text-[13px] text-blue-400 font-semibold">Sleep</p>
-                    </div>
-                    <span className="text-[10px] text-neutral-500 flex items-center gap-0.5">25 Oct {Icons.chevron}</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span ref={sleepHoursNodeRef} className="text-3xl font-normal text-white">8</span>
-                    <span className="text-[11px] text-neutral-400">hr</span>
-                    <span className="text-3xl font-normal text-white">00</span>
-                    <span className="text-[11px] text-neutral-400">min</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-500">100% Goal</p>
-                  <div className="w-full h-2 rounded-full bg-neutral-800 overflow-hidden">
-                    <div
-                      ref={sleepGoalBarRef}
-                      className="h-full rounded-full bg-blue-400"
-                      style={{ width: "0%" }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-neutral-500">
-                    <span>Deep: 5h 10m</span>
-                    <span>Light: 2h 50m</span>
-                  </div>
-                </div>
-              </CardGPU>
-
-              {/* ── WATER (count-up ml) ── */}
-              <CardGPU name="steps">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl flex items-center px-3 gap-2.5 border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <IconBadge bg="rgba(59,130,246,0.15)" color="#3B82F6" size={32}>{Icons.drop}</IconBadge>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-blue-400 leading-none">Water</p>
-                    <p ref={waterMlRef} className="text-base font-normal text-white leading-tight">0 ml</p>
-                  </div>
-                </div>
-              </CardGPU>
-
-              {/* ── HEALTH / VIEW ALL ── */}
-              <CardGPU name="ready">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl flex items-center px-3 gap-2.5 border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <IconBadge bg="rgba(45,212,191,0.15)" color="#2DD4BF" size={32} >{Icons.heartbeat}</IconBadge>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-teal-400 leading-none">Health</p>
-                    <p className="text-[12px] font-normal text-white leading-tight">View all</p>
-                  </div>
-                  <span className="text-neutral-500">{Icons.chevron}</span>
-                </div>
-              </CardGPU>
-
-              {/* ── EMOTIONAL ── */}
-              <CardGPU name="sleepPill">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl flex items-center px-3 gap-2.5 border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <IconBadge bg="rgba(244,114,182,0.15)" color="#F472B6" size={32} >{Icons.moon}</IconBadge>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-pink-400 leading-none">Emotional</p>
-                    <p ref={emotionalNodeRef} className="text-[12px] font-normal text-white leading-tight">Tracking</p>
-                  </div>
-                </div>
-              </CardGPU>
-
-              {/* ── WEIGHT ── */}
-              <CardGPU name="heart">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl p-3 flex flex-col justify-between border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <IconBadge bg="rgba(52,211,153,0.15)" color="#34D399" size={32}>{Icons.scale}</IconBadge>
-                      <p className="text-[13px] text-emerald-400 font-semibold">Weight</p>
-                    </div>
-                    <span className="text-[10px] text-neutral-500 flex items-center gap-0.5">25 Oct {Icons.chevron}</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span ref={weightNodeRef} className="text-4xl font-normal text-white">68.0</span>
-                    <span className="text-sm text-neutral-400">kg</span>
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-red-400 ml-0.5" fill="currentColor">
-                      <path d="M4 6l8 8 4-4 6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <GradientBar ref={weightBarRef} initialValue={0} />
-                  <p className="text-[11px] text-neutral-500">
-                    BMI <span ref={bmiValueRef} className="text-emerald-400 font-semibold">18.00</span>
-                  </p>
-                </div>
-              </CardGPU>
-
-              {/* ── WHR ── */}
-              <CardGPU name="run">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl p-3 flex flex-col justify-between border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.02]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <IconBadge bg="rgba(45,212,191,0.15)" color="#2DD4BF" size={32}>{Icons.ratio}</IconBadge>
-                      <p className="text-[13px] text-teal-400 font-semibold">WHR</p>
-                    </div>
-                    <span className="text-[10px] text-neutral-500 flex items-center gap-0.5">25 Oct {Icons.chevron}</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span ref={whrValueRef} className="text-3xl font-normal text-white">0.50</span>
-                    <span className="text-[11px] text-neutral-400">Ratio</span>
-                  </div>
-                  <GradientBar ref={whrBarRef} initialValue={0} />
-                  <p className="text-[11px] text-neutral-500">
-                    Progress <span className="text-teal-400 font-semibold">↘ Good</span>
-                  </p>
-                </div>
-              </CardGPU>
-
-              {/* ── MEDICAL RECORDS ── */}
-              <CardGPU name="med">
-                <div className="w-full h-full bg-neutral-900 rounded-2xl px-4 flex items-center justify-between border border-neutral-800 transition-all duration-300 hover:border-neutral-700 hover:scale-[1.01]">
-                  <div className="flex items-center gap-3">
-                    <IconBadge bg="rgba(255,255,255,0.06)" color="#9CA3AF" size={30}>
-                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M9 12h6M9 16h6M7 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 4a2 2 0 0 1 4 0H9Z" strokeLinecap="round" />
-                      </svg>
-                    </IconBadge>
-                    <span className="text-base font-medium text-neutral-300">Medical Records</span>
-                  </div>
-                  <span className="text-neutral-500">{Icons.chevron}</span>
-                </div>
-              </CardGPU>
-
             </div>
             {/* end cardsGroupRef */}
 
-            {/* ── FLASH OVERLAY ── soft radial pulse that peaks right before
-                the mockup resolves. */}
+            {/* ── FLASH OVERLAY ── */}
             <div
               ref={flashRef}
               aria-hidden="true"
@@ -774,8 +942,7 @@ export default function AppInterfaceSection() {
               }}
             />
 
-            {/* ── FINAL MOCKUP IMAGE ── irises open and defocuses to sharp as
-                the cards finish imploding. */}
+            {/* ── FINAL MOCKUP IMAGE ── */}
             <img
               ref={mockupImageRef}
               src={mockupImage}
