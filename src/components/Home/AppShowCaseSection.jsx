@@ -418,7 +418,7 @@ export default function HealthCoachSection() {
       {/* ── DESKTOP VERSION (lg+) ── */}
       <section
         ref={sectionRef}
-        className="relative w-full xl:min-h-[255vh] 2xl:min-h-[275vh] min-h-[275vh] bg-[#F6F5F1] overflow-hidden hidden lg:block"
+        className="relative w-full xl:min-h-[255vh] 2xl:min-h-[278vh] min-h-[275vh] bg-[#F6F5F1] overflow-hidden hidden lg:block"
       >
         <div data-hdr className="w-full flex flex-col items-center justify-center text-center px-6 pt-14 pb-2">
           <h1 className="text-4xl lg:text-5xl xl:text-[3rem] 2xl:text-[4rem] font-normal text-[#2C2C2C] leading-[1.2] tracking-tight 2xl:max-w-6xl max-w-5xl mb-5">
@@ -475,7 +475,7 @@ export default function HealthCoachSection() {
             <div
               ref={phone2Ref}
             data-phone-wrap
-              className="absolute pointer-events-auto w-[260px] sm:w-[320px] md:w-[400px] lg:w-[550px] xl:w-[650px] 2xl:w-[680px]  2xl:bottom-[-350px] 2xl:right-[80px] right-[150px] bottom-[-280px] xl:right-[60px] xl:bottom-[-280px] lg:right-[80px] lg:bottom-[-280px]"
+              className="absolute pointer-events-auto w-[220px] sm:w-[300px] md:w-[350px] lg:w-[520px] xl:w-[550px] 2xl:w-[580px]  2xl:bottom-[-350px] 2xl:right-[80px] right-[150px] bottom-[-280px] xl:right-[60px] xl:bottom-[-280px] lg:right-[80px] lg:bottom-[-280px]"
               style={{
                 transform: "perspective(1400px) rotateZ(0deg) rotateX(0deg)",
                 willChange: "transform",
@@ -492,7 +492,7 @@ export default function HealthCoachSection() {
             <div
               ref={phone1Ref}
             data-phone-wrap
-              className=" absolute pointer-events-auto w-[260px] sm:w-[320px] md:w-[400px] lg:w-[480px] xl:w-[680px] 2xl:w-[680px] 2xl:bottom-[-730px] 2xl:left-[100px] left-[60px] bottom-[-500px] lg:left-[60px] lg:bottom-[-500px] xl:left-[60px] xl:bottom-[-650px]"
+              className=" absolute pointer-events-auto w-[260px] sm:w-[320px] md:w-[400px] lg:w-[480px] xl:w-[680px] 2xl:w-[530px] 2xl:bottom-[-730px] 2xl:left-[120px] left-[60px] bottom-[-500px] lg:left-[60px] lg:bottom-[-500px] xl:left-[60px] xl:bottom-[-650px]"
               style={{
                 transform: "perspective(1400px) rotateZ(0deg) rotateX(0deg)",
                 willChange: "transform",
