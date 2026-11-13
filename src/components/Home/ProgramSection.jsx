@@ -4,7 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowRight, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, Clock, Heart,
-  Activity, User, Stethoscope
+  Activity, User, Stethoscope, Dumbbell
 } from "lucide-react";
 import handleConsultation from "../Helper/handleClick";
 
@@ -20,7 +20,7 @@ const PREVIEW_COUNT = 4;
 const plans = [
   {
     icon: Heart,
-    name: "Prenatal Conditions",
+    name: "Prenatal Care",
     subtitle: "Weight Management",
     tag: "Blossom",
     duration: "6 / 9 / 12 months",
@@ -36,7 +36,7 @@ const plans = [
   },
   {
     icon: Activity,
-    name: "Postnatal Conditions",
+    name: "Postnatal Care",
     subtitle: "Weight Management",
     tag: "Queen",
     duration: "6 / 9 / 12 months",
@@ -80,6 +80,19 @@ const plans = [
       "Diet & fitness review calls — twice monthly",
       "Daily meal plate review and progress follow-up on WhatsApp",
       "Access to recipe vault",
+    ],
+  },
+  {
+    icon: Dumbbell,
+    name: "Fitness-Based Body Toning Program",
+    subtitle: "Body Toning",
+    tag: "Tone",
+    duration: "6 / 9 / 12 months",
+    features: [
+      "Smart Nutrition Guidance",
+      "Exclusive 1:1 Video Consultations",
+      "Expert-Guided Fitness Training",
+      "Progress Monitoring",
     ],
   },
 ];
@@ -322,40 +335,39 @@ function NavBtn({ onClick, disabled, children, ...rest }) {
 }
 
 export default function ProgramSection() {
-  // Shared index state used by both mobile (1 card) and desktop (3 cards)
+  // Index of the first visible card. The list is circular, so the visible
+  // window wraps around the end (… last, first, second …).
   const [startIndex, setStartIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
 
   const sectionRef = useRef(null);
   const swapDirRef = useRef(1); // 1 = next (cards enter from right), -1 = prev
 
-  const VISIBLE_DESKTOP = 3;
-  const VISIBLE_MOBILE = 1;
+  const total = plans.length;
+  const VISIBLE_DESKTOP = Math.min(3, total);
 
-  const canPrevDesktop = startIndex > 0;
-  const canNextDesktop = startIndex + VISIBLE_DESKTOP < plans.length;
+  // Plans visible on desktop, wrapping past the end of the array.
+  const desktopPlans = Array.from({ length: VISIBLE_DESKTOP }, (_, k) => {
+    const idx = (startIndex + k) % total;
+    return { plan: plans[idx], idx };
+  });
 
-  const canPrevMobile = startIndex > 0;
-  const canNextMobile = startIndex + VISIBLE_MOBILE < plans.length;
-
-  const prev = (visibleCount) => {
-    if (startIndex > 0) {
-      swapDirRef.current = -1;
-      setStartIndex(i => Math.max(0, i - visibleCount));
-      setAnimKey(k => k + 1);
-    }
+  // Circular navigation: last → first on next, first → last on prev.
+  const prev = () => {
+    swapDirRef.current = -1;
+    setStartIndex(i => (i - 1 + total) % total);
+    setAnimKey(k => k + 1);
   };
 
-  const next = (visibleCount) => {
-    if (startIndex + visibleCount < plans.length) {
-      swapDirRef.current = 1;
-      setStartIndex(i => Math.min(plans.length - visibleCount, i + visibleCount));
-      setAnimKey(k => k + 1);
-    }
+  const next = () => {
+    swapDirRef.current = 1;
+    setStartIndex(i => (i + 1) % total);
+    setAnimKey(k => k + 1);
   };
 
   const goTo = (index) => {
-    swapDirRef.current = index >= startIndex ? 1 : -1;
+    if (index === startIndex) return;
+    swapDirRef.current = index > startIndex ? 1 : -1;
     setStartIndex(index);
     setAnimKey(k => k + 1);
   };
@@ -451,7 +463,7 @@ export default function ProgramSection() {
     <section
       id="programs"
       ref={sectionRef}
-      className="px-4 sm:px-6 md:px-8 py-30 sm:py-20 md:py-24"
+      className="px-4 sm:px-6 md:px-8 py-20 sm:py-12 md:py-14"
       style={{ backgroundColor: C.pageBg, overflowX: "clip" }}
     >
       <div className="mx-auto max-w-7xl">
@@ -460,7 +472,7 @@ export default function ProgramSection() {
         <div className="w-full flex flex-col items-center justify-center text-center px-6 pb-14">
           <h1
             data-head
-            className="text-[2.75rem] sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-[#1d1d1f] leading-[1.07] tracking-tight max-w-5xl 2xl:max-w-6xl mb-6"
+            className="text-[2.75rem] sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-[#009689] leading-[1.07] tracking-tight max-w-5xl 2xl:max-w-6xl mb-6"
             style={{ letterSpacing: "-0.02em" }}
           >
             FitMom Club Plans
@@ -494,7 +506,7 @@ export default function ProgramSection() {
             data-nav
             className="mt-8 flex items-center justify-between px-1"
           >
-            <NavBtn onClick={() => prev(1)} disabled={!canPrevMobile} aria-label="Previous">
+            <NavBtn onClick={prev} aria-label="Previous">
               <ChevronLeft size={18} />
             </NavBtn>
 
@@ -518,26 +530,26 @@ export default function ProgramSection() {
               ))}
             </div>
 
-            <NavBtn onClick={() => next(1)} disabled={!canNextMobile} aria-label="Next">
+            <NavBtn onClick={next} aria-label="Next">
               <ChevronRight size={18} />
             </NavBtn>
           </div>
 
           {/* Plan counter */}
           <p data-nav className="text-center text-sm text-[#86868b] mt-4 font-medium">
-            {startIndex + 1} of {plans.length}
+            {startIndex + 1} of {total}
           </p>
         </div>
 
-        {/* ── DESKTOP: 3 cards with carousel ── */}
+        {/* ── DESKTOP: 3 cards with circular carousel ── */}
         <div className="hidden lg:block">
           <div
             key={`desktop-${animKey}`}
             data-swap
             className="grid grid-cols-3 gap-7 pt-8"
           >
-            {plans.slice(startIndex, startIndex + VISIBLE_DESKTOP).map((plan, i) => (
-              <PlanCard key={startIndex + i} plan={plan} />
+            {desktopPlans.map(({ plan, idx }) => (
+              <PlanCard key={idx} plan={plan} />
             ))}
           </div>
 
@@ -545,7 +557,8 @@ export default function ProgramSection() {
           <div data-nav className="mt-8 flex items-center justify-end gap-3">
             <div className="flex items-center gap-2 mr-3">
               {plans.map((_, i) => {
-                const active = i >= startIndex && i < startIndex + VISIBLE_DESKTOP;
+                // Active if this plan is inside the (wrapping) visible window.
+                const active = desktopPlans.some(p => p.idx === i);
                 return (
                   <span
                     key={i}
@@ -559,10 +572,10 @@ export default function ProgramSection() {
                 );
               })}
             </div>
-            <NavBtn onClick={() => prev(1)} disabled={!canPrevDesktop} aria-label="Previous">
+            <NavBtn onClick={prev} aria-label="Previous">
               <ChevronLeft size={18} />
             </NavBtn>
-            <NavBtn onClick={() => next(1)} disabled={!canNextDesktop} aria-label="Next">
+            <NavBtn onClick={next} aria-label="Next">
               <ChevronRight size={18} />
             </NavBtn>
           </div>

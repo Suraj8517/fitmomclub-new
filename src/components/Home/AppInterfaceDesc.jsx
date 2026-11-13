@@ -5,7 +5,7 @@ export default function AppInterfaceDesc() {
   return (
     <div >
         <div className="sm:hidden text-center mb-10 max-w-xs mx-auto">
-          <h1 className="text-3xl sm:text-4xl font-normal text-[#2C2C2C] leading-[1.2] tracking-tight mb-4">
+          <h1 className="text-3xl sm:text-4xl font-normal text-[#009689] leading-[1.2] tracking-tight mb-4">
             FitMom Club App
           </h1>
           <p className="text-base sm:text-lg text-[#4A4A4A] leading-relaxed mb-5">
@@ -24,7 +24,7 @@ export default function AppInterfaceDesc() {
           </Link>
         </div>
         <div className="hidden  w-full sm:flex flex-col items-center justify-center text-center px-6 pt-14 pb-2">
-          <h1 className="text-4xl lg:text-5xl xl:text-[3rem] 2xl:text-[4rem] font-normal text-[#2C2C2C] leading-[1.2] tracking-tight 2xl:max-w-6xl max-w-5xl mb-5">
+          <h1 className="text-4xl lg:text-5xl xl:text-[3rem] 2xl:text-[4rem] font-normal text-[#009689] leading-[1.2] tracking-tight 2xl:max-w-6xl max-w-5xl mb-5">
             FitMom Club App
           </h1>
           <p className="text-lg lg:text-3xl text-[#4A4A4A] leading-relaxed mb-6">

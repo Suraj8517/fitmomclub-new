@@ -3,13 +3,13 @@ import SelectField from "./selectField";
 import StepHeading from "./stepHeading";
 
 export default function StepGoal({ value, onChange, gender }) {
-  const filteredGoals = gender?.toLowerCase() === "male" ? GOALS.slice(0, 2) : GOALS;
+  const filteredGoals = GOALS;
   return (
     <div className="flex flex-col">
       <StepHeading
         title={
           <>
-            What is your primary goal? <span className="text-teal-600">*</span>
+            What is your primary health goal? <span className="text-teal-600">*</span>
           </>
         }
         subtitle="Pick the one that matters most right now — we'll shape your plan around it."

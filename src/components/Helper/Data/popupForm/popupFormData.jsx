@@ -46,10 +46,12 @@ export const COUNTRY_CODES = [
 ];
 
 export const GOALS = [
-  "Weight Management",
+  "Weight Gain",
+  "Weight Loss",
   "Health Issue Management",
-  "Natural Conception/Fertility",
-  "Currently Pregnant",
+  "Prenatal Care",
+  "Postpartum Recovery",
+  "Toned Body"
 ];
 
 export const EMPTY_FORM = {

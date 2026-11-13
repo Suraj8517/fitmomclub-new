@@ -110,12 +110,7 @@ export default function FitMomLoader({ minMs = 4200, onDone }) {
         aria-hidden="true"
         className="grain pointer-events-none absolute -inset-1/2 opacity-[.14] mix-blend-overlay animate-grain motion-reduce:animate-none"
       />
-      {done && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-40 animate-flash bg-white motion-reduce:animate-none"
-        />
-      )}
+    
     </div>
   );
 }

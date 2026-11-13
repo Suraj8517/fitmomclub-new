@@ -149,7 +149,7 @@ export default function CommunityStatsSection() {
         className="flex bg-[#F6F5F1] px-4 py-6 sm:px-6 sm:py-8 md:px-14 md:py-3 font-poppins min-h-[40vh] items-center"
       >
         <div
-          className="cs-card bg-white rounded-3xl px-6 py-10 sm:px-10 sm:py-12 md:px-14 md:py-16 w-full max-w-7xl mx-auto"
+          className="cs-card bg-white/40 rounded-3xl px-6 py-10 sm:px-10 sm:py-12 md:px-14 md:py-16 w-full max-w-7xl mx-auto"
           style={{
             opacity: inView ? 1 : 0,
             animation: inView ? "csCardIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards" : "none",

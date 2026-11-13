@@ -534,7 +534,7 @@ export default function ProgramFeatures() {
   return (
     <section ref={sectionRef} className="w-full" style={{ background: "#F5F4F0" }}>
       <AnimationStyles />
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-20 lg:py-28">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-15 lg:py-14">
         {/* Header */}
         <div data-header className="max-w-2xl mb-14 lg:mb-16">
           <span
