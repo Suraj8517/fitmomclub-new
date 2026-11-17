@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import {BODY_TYPES,BODY_IMAGES,GENDER_OPTIONS,COUNTRY_CODES,STEPS,GOALS,EMPTY_FORM,ALLOWED_GENDERS,ALLOWED_WEIGHT_UNITS,ALLOWED_HEIGHT_UNITS,} from "./Data/popupForm/popupFormData"
+import {COUNTRY_CODES,STEPS,GOALS,EMPTY_FORM,ALLOWED_GENDERS,ALLOWED_WEIGHT_UNITS,ALLOWED_HEIGHT_UNITS,LB_PER_KG,CM_PER_IN} from "./Data/popupForm/popupFormData"
 import {NAME_RE,CITY_RE,EMAIL_RE,PHONE_RE,IN_PHONE_RE,CUSTOM_CODE_RE} from "./popupFormHelpers/popupFormRegex"
-import {getBodyType,cleanText,cleanEmail,cleanCode,cleanUrl,cleanUtm,FORMULA_START,safeCell,toCm,toKg} from "./popupFormHelpers/popupFormValidations"
+import {calculateBMI,getBodyType,cleanText,cleanEmail,cleanCode,cleanUrl,cleanUtm,FORMULA_START,safeCell,toCm,toKg} from "./popupFormHelpers/popupFormValidations"
 import ArrowRight from "../PopupForm/arrowRight";
 import ProgressBar from "../PopupForm/progressBar";
 import StepHeading from "../PopupForm/stepHeading";
@@ -19,11 +19,6 @@ import StepHeight from "../PopupForm/stepHeight";
 import StepResult from "../PopupForm/stepResult";
 import IconX from "./iconX";
 const ENV_SHEET_URL = import.meta.env?.VITE_SHEET_URL || "";
-
-
-
-
-
 
 /* ───────────────────────── main component ───────────────────────── */
 
@@ -158,17 +153,23 @@ export default function PopupForm({
       return { ...f, heightUnit: unit, height };
     });
 
-  // ---- BMI (always computed in metric) ----
+  // ---- Metric values (used by step validation) ----
   const weightKg = toKg(Number(form.weight), form.weightUnit);
   const heightCm = toCm(Number(form.height), form.heightUnit);
 
-  const bmi = useMemo(() => {
-    if (!(weightKg > 0) || !(heightCm > 0)) return null;
-    const hM = heightCm / 100;
-    return weightKg / (hM * hM);
-  }, [weightKg, heightCm]);
+  // ---- BMI + 10-stage body type (single calculation path) ----
+  const bmi = useMemo(
+    () =>
+      calculateBMI({
+        weight: form.weight,
+        weightUnit: form.weightUnit,
+        height: form.height,
+        heightUnit: form.heightUnit,
+      }),
+    [form.weight, form.weightUnit, form.height, form.heightUnit]
+  );
 
-  const bodyType = bmi ? getBodyType(bmi) : null;
+  const bodyType = useMemo(() => getBodyType(bmi), [bmi]);
 
   const codeOk =
     form.countryCode === "other"
@@ -194,7 +195,7 @@ export default function PopupForm({
       ALLOWED_WEIGHT_UNITS.includes(form.weightUnit) && weightKg >= 20 && weightKg <= 400,
     height:
       ALLOWED_HEIGHT_UNITS.includes(form.heightUnit) && heightCm >= 50 && heightCm <= 260,
-    result: !!bmi,
+    result: !!bmi && !!bodyType,
   };
 
   const canAdvance = stepValid[step];
@@ -284,10 +285,8 @@ export default function PopupForm({
           }}
         />
 
-       
-
         <span className="relative whitespace-nowrap">
-          Get Your FREE Fitness Report 
+          Get Your FREE Fitness Report
         </span>
 
         {/* Arrow */}
@@ -466,4 +465,3 @@ export default function PopupForm({
     </div>
   );
 }
-

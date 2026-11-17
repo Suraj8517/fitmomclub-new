@@ -2,27 +2,19 @@ import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "re
 import male from '../assets/form/male.png'
 import female from '../assets/form/female.png'
 
-// Body-type result images — rename your files to match this pattern, or just
-// change these import paths to point at your existing files.
-import maleUnderweight from '../assets/form/male/male-underweight.png'
-import maleNormal from '../assets/form/male/male-normal.png'
-import maleOverweight from '../assets/form/male/male-overweight.png'
-import maleObese from '../assets/form/male/male-obese.png'
-import maleExtremeObese from '../assets/form/male/male-extreme-obese.png'
-import femaleUnderweight from '../assets/form/female/female-underweight.png'
-import femaleNormal from '../assets/form/female/female-normal.png'
-import femaleOverweight from '../assets/form/female/female-overweight.png'
-import femaleObese from '../assets/form/female/female-obese.png'
-import femaleExtremeObese from '../assets/form/female/female-extreme-obese.png'
-
 /**
  * BodyAssessmentForm (popup)
  * --------------------------
  * Multi-step onboarding flow shown in a modal:
  *   Age -> Gender -> Contact (name, email, phone, city) -> Primary goal
- *   -> Weight -> Height -> Result (BMI + body type)
+ *   -> Weight -> Height -> Result (BMI + 10-stage body type)
  *
  * Every field is required.
+ *
+ * Stage images expected at:
+ *   ../assets/form/male/male-stage-1.png ... male-stage-10.png
+ *   ../assets/form/female/female-stage-1.png ... female-stage-10.png
+ * Missing images do not break the build; the result screen shows a fallback box.
  *
  * Usage:
  *   const [open, setOpen] = useState(false);
@@ -67,65 +59,69 @@ const GOAL_OPTIONS = [
   "Currently Pregnant",
 ];
 
-// Body-type result image per gender per BMI category
+// ---------------------------------------------------------------------------
+// 10-stage body classification
+// ---------------------------------------------------------------------------
+
+// Loads whatever stage PNGs exist; a missing file just yields undefined.
+const collectStages = (modules) =>
+  Object.entries(modules).reduce((acc, [path, url]) => {
+    const m = path.match(/stage-(\d+)\.png$/);
+    if (m) acc[Number(m[1])] = url;
+    return acc;
+  }, {});
+
 const BODY_IMAGES = {
-  male: {
-    underweight: maleUnderweight,
-    normal: maleNormal,
-    overweight: maleOverweight,
-    obese: maleObese,
-    extremeObese: maleExtremeObese,
-  },
-  female: {
-    underweight: femaleUnderweight,
-    normal: femaleNormal,
-    overweight: femaleOverweight,
-    obese: femaleObese,
-    extremeObese: femaleExtremeObese,
-  },
+  male: collectStages(
+    import.meta.glob("../assets/form/male/male-stage-*.png", { eager: true, import: "default" })
+  ),
+  female: collectStages(
+    import.meta.glob("../assets/form/female/female-stage-*.png", { eager: true, import: "default" })
+  ),
 };
 
-// Standard BMI breakpoints -> body type used to pick the result image and copy
+// min inclusive, max exclusive. Custom visual stages, not medical categories.
 const BODY_TYPES = [
-  {
-    id: "underweight",
-    label: "Underweight",
-    max: 18.5,
-    accent: "#0891B2",
-    blurb: "You're on the lighter end. A structured plan can help you build muscle and strength.",
-  },
-  {
-    id: "normal",
-    label: "Normal",
-    max: 25,
-    accent: "#0D9488",
-    blurb: "You're in a healthy range. The right plan will help you build definition and maintain it.",
-  },
-  {
-    id: "overweight",
-    label: "Overweight",
-    max: 30,
-    accent: "#D97706",
-    blurb: "You're carrying some extra weight. A tailored plan can help you lean out and feel stronger.",
-  },
-  {
-    id: "obese",
-    label: "Obese",
-    max: 40,
-    accent: "#EA580C",
-    blurb: "A tailored plan can help you bring your weight down steadily and safely.",
-  },
-  {
-    id: "extremeObese",
-    label: "Extreme Obese",
-    max: Infinity,
-    accent: "#DC2626",
-    blurb: "A consistent, guided plan can help you make real progress — one step at a time.",
-  },
+  { stage: 1,  label: "Underweight",       min: 0,    max: 16,       accent: "#0891B2", blurb: "You're on the lighter end. A structured plan can help you build strength and energy." },
+  { stage: 2,  label: "Lean",              min: 16,   max: 18.5,     accent: "#0E9AA7", blurb: "You have a lean frame. The right training and nutrition can help you build strength and definition." },
+  { stage: 3,  label: "Athletic",          min: 18.5, max: 20,       accent: "#0D9488", blurb: "You're in a light, active range. A good plan can help you keep building performance and tone." },
+  { stage: 4,  label: "Muscular",          min: 20,   max: 21.5,     accent: "#0F9D6E", blurb: "You're in a strong, well-balanced range. A smart plan can help you maintain and sharpen it." },
+  { stage: 5,  label: "Normal",            min: 21.5, max: 23,       accent: "#16A34A", blurb: "You're in a healthy range. Consistent habits will help you stay there and feel your best." },
+  { stage: 6,  label: "Soft",              min: 23,   max: 25,       accent: "#65A30D", blurb: "You're at the upper end of a healthy range. Small, steady changes can help you tone up." },
+  { stage: 7,  label: "Overweight",        min: 25,   max: 27.5,     accent: "#D97706", blurb: "You're carrying some extra weight. A tailored plan can help you lean out and feel stronger." },
+  { stage: 8,  label: "Obese - Class I",   min: 27.5, max: 30,       accent: "#EA580C", blurb: "A tailored plan can help you bring your weight down steadily and sustainably." },
+  { stage: 9,  label: "Obese - Class II",  min: 30,   max: 35,       accent: "#DC2626", blurb: "A guided, consistent plan can help you make real progress, one step at a time." },
+  { stage: 10, label: "Obese - Class III", min: 35,   max: Infinity, accent: "#B91C1C", blurb: "You deserve proper support. A guided plan, ideally alongside your doctor, can help you move forward safely." },
 ];
 
+const BMI_DISCLAIMER =
+  "These stages are a visual guide based on BMI, not medical diagnoses. BMI can't measure muscle mass or body-fat distribution, so an athletic person may land in a higher stage.";
+
+const LB_PER_KG = 2.20462262;
+const CM_PER_IN = 2.54;
+const toKg = (v, unit) => (unit === "lb" ? v / LB_PER_KG : v);
+const toCm = (v, unit) => (unit === "in" ? v * CM_PER_IN : v);
+
+/** Single source of truth for BMI: number (2 decimals) or null if invalid. */
+function calculateBMI({ weight, weightUnit = "kg", height, heightUnit = "cm" }) {
+  const w = Number(weight);
+  const h = Number(height);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+  const kg = toKg(w, weightUnit);
+  const m = toCm(h, heightUnit) / 100;
+  const bmi = kg / (m * m);
+  return Number.isFinite(bmi) ? Math.round(bmi * 100) / 100 : null;
+}
+
+/** Stage object (1-10) for a BMI, or null. */
 function getBodyType(bmi) {
-  return BODY_TYPES.find((b) => bmi < b.max) ?? BODY_TYPES[BODY_TYPES.length - 1];
+  if (!Number.isFinite(bmi) || bmi <= 0) return null;
+  return BODY_TYPES.find((t) => bmi >= t.min && bmi < t.max) ?? null;
+}
+
+/** Image URL for gender ("male" | "female") and stage, or null if missing. */
+function getBodyImage(gender, stage) {
+  return BODY_IMAGES[gender]?.[stage] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -734,14 +730,20 @@ export default function BodyAssessmentForm({ open = false, onClose, onSubmit }) 
     }
   }, [open]);
 
-  const bmi = useMemo(() => {
-    const w = Number(data.weightKg);
-    const hM = Number(data.heightCm) / 100;
-    if (!w || !hM) return null;
-    return w / (hM * hM);
-  }, [data.weightKg, data.heightCm]);
+  // BMI + 10-stage body type. Recomputes whenever weight or height changes;
+  // gender is read live from `data.gender` when the result is rendered.
+  const bmi = useMemo(
+    () =>
+      calculateBMI({
+        weight: data.weightKg,
+        weightUnit: "kg",
+        height: data.heightCm,
+        heightUnit: "cm",
+      }),
+    [data.weightKg, data.heightCm]
+  );
 
-  const bodyType = bmi ? getBodyType(bmi) : null;
+  const bodyType = useMemo(() => getBodyType(bmi), [bmi]);
 
   if (!open) return null;
 
@@ -780,7 +782,8 @@ export default function BodyAssessmentForm({ open = false, onClose, onSubmit }) 
       email: data.email.trim(),
       city: data.city.trim(),
       bmi: bmi ? Math.round(bmi * 10) / 10 : null,
-      bodyType: bodyType?.id ?? null,
+      bodyStage: bodyType?.stage ?? null,
+      bodyType: bodyType?.label ?? null,
     });
   }
 
@@ -1129,23 +1132,28 @@ function StepHeight({ value, onChange }) {
 
 function StepResult({ bmi, bodyType, gender, onSubmit }) {
   const roundedBmi = Math.round(bmi * 10) / 10;
-  // position of the marker along a 15–40 BMI scale, clamped 0–100%
-  const markerPct = Math.min(100, Math.max(0, ((bmi - 15) / (40 - 15)) * 100));
-  const bodyImage = BODY_IMAGES[gender]?.[bodyType.id];
+  const bodyImage = getBodyImage(gender, bodyType.stage);
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => setImgFailed(false), [bodyImage]);
 
   return (
     <div className="flex flex-col sm:mx-auto sm:max-w-lg">
       {/* Top: image + headline/number side-by-side on larger screens to save height */}
       <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
-        {bodyImage && (
-          <div className="flex shrink-0 justify-center">
+        <div className="flex h-36 shrink-0 items-center justify-center sm:h-64">
+          {bodyImage && !imgFailed ? (
             <img
               src={bodyImage}
-              alt={`${bodyType.label} body type`}
-              className="h-36 w-auto object-contain drop-shadow-md sm:h-64"
+              alt={`${gender} body illustration, stage ${bodyType.stage}: ${bodyType.label}`}
+              onError={() => setImgFailed(true)}
+              className="h-full w-auto object-contain drop-shadow-md"
             />
-          </div>
-        )}
+          ) : (
+            <div className="rounded-2xl border border-dashed border-stone-300 px-6 py-10 text-sm text-stone-400">
+              Illustration coming soon
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-1 flex-col items-center sm:items-start">
           <h1 className="text-2xl font-extrabold tracking-tight leading-tight sm:text-3xl">
@@ -1154,8 +1162,10 @@ function StepResult({ bmi, bodyType, gender, onSubmit }) {
           <p className="mt-1 text-sm text-stone-500">Based on your BMI</p>
 
           <div className="mt-3 flex flex-col items-center sm:items-start">
+            <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Stage</span>
             <span className="text-5xl font-extrabold tracking-tight" style={{ color: bodyType.accent }}>
-              {roundedBmi}
+              {bodyType.stage}
+              <span className="text-2xl text-stone-300">/10</span>
             </span>
             <span
               className="mt-2 rounded-full px-4 py-1 text-sm font-bold"
@@ -1163,26 +1173,37 @@ function StepResult({ bmi, bodyType, gender, onSubmit }) {
             >
               {bodyType.label}
             </span>
+            <span className="mt-2 text-sm text-stone-500">
+              BMI <strong className="text-stone-800">{roundedBmi.toFixed(1)}</strong>
+            </span>
           </div>
 
           <p className="mx-auto mt-3 max-w-xs text-sm text-stone-500 sm:mx-0">{bodyType.blurb}</p>
         </div>
       </div>
 
-      {/* BMI gauge */}
+      {/* 10-stage tracker */}
       <div className="mt-6 w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-500 via-40% to-red-500">
-          <div
-            className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white shadow"
-            style={{ left: `${markerPct}%`, backgroundColor: bodyType.accent }}
-          />
+        <div className="flex gap-1" role="list" aria-label="Body stages">
+          {BODY_TYPES.map((t) => {
+            const active = t.stage === bodyType.stage;
+            return (
+              <div
+                key={t.stage}
+                role="listitem"
+                title={`${t.stage}. ${t.label}`}
+                aria-current={active ? "true" : undefined}
+                className={`flex-1 rounded-full py-1 text-center text-[10px] font-bold transition sm:text-xs ${
+                  active ? "scale-110 text-white shadow" : "bg-stone-200 text-stone-400"
+                }`}
+                style={active ? { background: t.accent } : undefined}
+              >
+                {t.stage}
+              </div>
+            );
+          })}
         </div>
-        <div className="mt-3 flex justify-between text-[11px] font-medium text-stone-400 sm:text-xs">
-          <span>Underweight</span>
-          <span>Normal</span>
-          <span>Overweight</span>
-          <span>Obese</span>
-        </div>
+        <p className="mt-3 text-[11px] leading-snug text-stone-400">{BMI_DISCLAIMER}</p>
       </div>
 
       <div className="mt-6 w-full">

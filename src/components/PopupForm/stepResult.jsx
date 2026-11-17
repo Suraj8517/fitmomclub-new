@@ -1,65 +1,77 @@
-import { BODY_IMAGES } from "../Helper/Data/popupForm/popupFormData";
+import React, { useState, useEffect } from "react";
+import { BODY_TYPES, BMI_DISCLAIMER } from "../Helper/Data/popupForm/popupFormData";
+import { getBodyImage } from "../Helper/popupFormHelpers/popupFormValidations";
 
-export default function StepResult({ bmi, bodyType, gender, status }) {
-  const roundedBmi = Math.round(bmi * 10) / 10;
-  const markerPct = Math.min(100, Math.max(0, ((bmi - 15) / (40 - 15)) * 100));
-  const bodyImage = BODY_IMAGES[gender]?.[bodyType.id];
+/* Adjust the two import paths above to match where this file lives.
+   Layout is deliberately compact so the whole result fits inside the popup
+   without any scrolling: illustration and score sit side by side, the stage
+   strip runs underneath, then the blurb and disclaimer. */
+export default function StepResult({ bmi, bodyType, gender }) {
+  const src = getBodyImage(gender, bodyType.stage);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
 
   return (
-    <div className="flex flex-col sm:mx-auto sm:max-w-lg">
-      <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
-        {bodyImage && (
-          <div className="flex shrink-0 justify-center">
+    <div className="flex w-full flex-col gap-3">
+      {/* Illustration + score, side by side */}
+      <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+        <div className="flex h-40 w-28 items-center justify-center sm:h-48 sm:w-36">
+          {src && !failed ? (
             <img
-              src={bodyImage}
-              alt={`${bodyType.label} body type`}
-              className="h-36 w-auto object-contain drop-shadow-md sm:h-64"
+              src={src}
+              alt={`${gender} body illustration, stage ${bodyType.stage}: ${bodyType.label}`}
+              className="max-h-full max-w-full object-contain"
+              onError={() => setFailed(true)}
             />
-          </div>
-        )}
+          ) : (
+            <div className="rounded-xl border border-dashed border-stone-300 px-2 py-6 text-center text-xs text-stone-400">
+              Illustration coming soon
+            </div>
+          )}
+        </div>
 
-        <div className="flex flex-1 flex-col items-center sm:items-start">
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-stone-900 sm:text-3xl">
-            Your body type
-          </h1>
-          <p className="mt-1 text-sm text-stone-500">Based on your BMI</p>
+        <div className="min-w-0 text-left">
+          <p className="text-xs font-semibold text-stone-400">Your stage</p>
+          <p
+            className="text-4xl font-extrabold leading-none sm:text-5xl"
+            style={{ color: bodyType.accent }}
+          >
+            {bodyType.stage}
+            <span className="text-xl text-stone-300 sm:text-2xl">/10</span>
+          </p>
+          <h3 className="mt-1 text-lg font-bold leading-tight text-stone-800 sm:text-xl">
+            {bodyType.label}
+          </h3>
+          <p className="mt-0.5 text-sm text-stone-500">
+            BMI <strong className="text-stone-700">{bmi.toFixed(1)}</strong>
+          </p>
+        </div>
+      </div>
 
-          <div className="mt-3 flex flex-col items-center sm:items-start">
-            <span className="text-5xl font-extrabold tracking-tight" style={{ color: bodyType.accent }}>
-              {roundedBmi}
-            </span>
-            <span
-              className="mt-2 rounded-full px-4 py-1 text-sm font-bold"
-              style={{ backgroundColor: `${bodyType.accent}1A`, color: bodyType.accent }}
+      {/* Stage strip */}
+      <div className="flex gap-1" role="list" aria-label="Body stages">
+        {BODY_TYPES.map((t) => {
+          const active = t.stage === bodyType.stage;
+          return (
+            <div
+              key={t.stage}
+              role="listitem"
+              title={`${t.stage}. ${t.label}`}
+              aria-current={active ? "true" : undefined}
+              className={`flex-1 rounded-full py-0.5 text-center text-[10px] font-bold transition sm:text-xs ${
+                active ? "scale-110 text-white shadow" : "bg-stone-200 text-stone-400"
+              }`}
+              style={active ? { background: t.accent } : undefined}
             >
-              {bodyType.label}
-            </span>
-          </div>
-
-          <p className="mx-auto mt-3 max-w-xs text-sm text-stone-500 sm:mx-0">{bodyType.blurb}</p>
-        </div>
+              {t.stage}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="mt-6 w-full rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-500 via-40% to-red-500">
-          <div
-            className="absolute -top-1.5 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-white shadow"
-            style={{ left: `${markerPct}%`, backgroundColor: bodyType.accent }}
-          />
-        </div>
-        <div className="mt-3 flex justify-between text-[11px] font-medium text-stone-400 sm:text-xs">
-          <span>Underweight</span>
-          <span>Normal</span>
-          <span>Overweight</span>
-          <span>Obese</span>
-        </div>
-      </div>
-
-      {status === "error" && (
-        <p className="mt-3 text-center text-xs font-medium text-red-600">
-          Something went wrong. Please try again.
-        </p>
-      )}
+      {/* Blurb + disclaimer */}
+      <p className="text-sm leading-snug text-stone-600">{bodyType.blurb}</p>
+      <p className="text-[10px] leading-tight text-stone-400">{BMI_DISCLAIMER}</p>
     </div>
   );
 }
