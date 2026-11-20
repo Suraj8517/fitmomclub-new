@@ -93,18 +93,14 @@ export const BODY_IMAGES = {
   ),
 };
 
-/* min inclusive, max exclusive */
+/* min inclusive, max exclusive. Edit labels and ranges here only. */
 export const BODY_TYPES = [
-  { stage: 1,  label: "Underweight",       min: 0,    max: 16,       accent: "#0891B2", blurb: "You're on the lighter end. A structured plan can help you build strength and energy." },
-  { stage: 2,  label: "Lean",              min: 16,   max: 18.5,     accent: "#0E9AA7", blurb: "You have a lean frame. The right training and nutrition can help you build strength and definition." },
-  { stage: 3,  label: "Athletic",          min: 18.5, max: 20,       accent: "#0D9488", blurb: "You're in a light, active range. A good plan can help you keep building performance and tone." },
-  { stage: 4,  label: "Muscular",          min: 20,   max: 21.5,     accent: "#0F9D6E", blurb: "You're in a strong, well-balanced range. A smart plan can help you maintain and sharpen it." },
-  { stage: 5,  label: "Normal",            min: 21.5, max: 23,       accent: "#16A34A", blurb: "You're in a healthy range. Consistent habits will help you stay there and feel your best." },
-  { stage: 6,  label: "Soft",              min: 23,   max: 25,       accent: "#65A30D", blurb: "You're at the upper end of a healthy range. Small, steady changes can help you tone up." },
-  { stage: 7,  label: "Overweight",        min: 25,   max: 27.5,     accent: "#D97706", blurb: "You're carrying some extra weight. A tailored plan can help you lean out and feel stronger." },
-  { stage: 8,  label: "Obese - Class I",   min: 27.5, max: 30,       accent: "#EA580C", blurb: "A tailored plan can help you bring your weight down steadily and sustainably." },
-  { stage: 9,  label: "Obese - Class II",  min: 30,   max: 35,       accent: "#DC2626", blurb: "A guided, consistent plan can help you make real progress, one step at a time." },
-  { stage: 10, label: "Obese - Class III", min: 35,   max: Infinity, accent: "#B91C1C", blurb: "You deserve proper support. A guided plan, ideally alongside your doctor, can help you move forward safely." },
+  { stage: 1, label: "Lean",              min: 0,  max: 22,       accent: "#0D9488", blurb: "You have a lean, light frame. The right training and nutrition can help you build strength, energy and definition." },
+  { stage: 2, label: "Normal",            min: 22, max: 25,       accent: "#16A34A", blurb: "You're in a healthy range. Consistent habits will help you stay there and feel your best." },
+  { stage: 3, label: "Overweight",        min: 25, max: 30,       accent: "#D97706", blurb: "You're carrying some extra weight. A tailored plan can help you lean out and feel stronger." },
+  { stage: 4, label: "Obese - Class I",   min: 30, max: 35,       accent: "#EA580C", blurb: "A tailored plan can help you bring your weight down steadily and sustainably." },
+  { stage: 5, label: "Obese - Class II",  min: 35, max: 40,       accent: "#DC2626", blurb: "A guided, consistent plan can help you make real progress, one step at a time." },
+  { stage: 6, label: "Obese - Class III", min: 40, max: Infinity, accent: "#B91C1C", blurb: "You deserve proper support. A guided plan, ideally alongside your doctor, can help you move forward safely." },
 ];
 
 export const BMI_DISCLAIMER =
@@ -116,4 +112,3 @@ export const CM_PER_IN = 2.54;
 export const fieldShell =
   "flex items-center gap-2 rounded-2xl border border-stone-200 bg-white shadow-sm transition focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100";
 
-  console.log("BODY_IMAGES", BODY_IMAGES);

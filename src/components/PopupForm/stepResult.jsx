@@ -13,14 +13,32 @@ export default function StepResult({ bmi, bodyType, gender }) {
 
   return (
     <div className="flex w-full flex-col gap-3">
-      {/* Illustration + score, side by side */}
-      <div className="grid grid-cols-[auto_1fr] items-center gap-4">
-        <div className="flex h-40 w-28 items-center justify-center sm:h-48 sm:w-36">
+      {/* Score on the left, larger illustration on the right */}
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 sm:gap-6">
+        <div className="min-w-0 text-left">
+          <p className="text-xs font-semibold text-stone-400">Your stage</p>
+          <p
+            className="text-5xl font-extrabold leading-none sm:text-6xl"
+            style={{ color: bodyType.accent }}
+          >
+            {bodyType.stage}
+            <span className="text-xl text-stone-300 sm:text-3xl">/6</span>
+          </p>
+          <h3 className="mt-2 break-words text-lg font-bold leading-tight text-stone-800 sm:text-2xl">
+            {bodyType.label}
+          </h3>
+          <p className="mt-1 text-sm text-stone-500 sm:text-base">
+            BMI <strong className="text-stone-700">{bmi.toFixed(1)}</strong>
+          </p>
+        </div>
+
+        {/* Height also capped by viewport so short phones never scroll */}
+        <div className="flex h-[min(14rem,30vh)] w-36 items-center justify-center sm:h-72 sm:w-52">
           {src && !failed ? (
             <img
               src={src}
               alt={`${gender} body illustration, stage ${bodyType.stage}: ${bodyType.label}`}
-              className="max-h-full max-w-full object-contain"
+              className="h-full w-full object-contain"
               onError={() => setFailed(true)}
             />
           ) : (
@@ -28,23 +46,6 @@ export default function StepResult({ bmi, bodyType, gender }) {
               Illustration coming soon
             </div>
           )}
-        </div>
-
-        <div className="min-w-0 text-left">
-          <p className="text-xs font-semibold text-stone-400">Your stage</p>
-          <p
-            className="text-4xl font-extrabold leading-none sm:text-5xl"
-            style={{ color: bodyType.accent }}
-          >
-            {bodyType.stage}
-            <span className="text-xl text-stone-300 sm:text-2xl">/10</span>
-          </p>
-          <h3 className="mt-1 text-lg font-bold leading-tight text-stone-800 sm:text-xl">
-            {bodyType.label}
-          </h3>
-          <p className="mt-0.5 text-sm text-stone-500">
-            BMI <strong className="text-stone-700">{bmi.toFixed(1)}</strong>
-          </p>
         </div>
       </div>
 
