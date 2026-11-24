@@ -415,7 +415,7 @@ export default function HealthCoachSection() {
         </div>
       </section>
 
-      {/* ── DESKTOP VERSION (lg+) ── */}
+      {/* ── DESKTOP VERSION  */}
       <section
         ref={sectionRef}
         className="relative w-full xl:min-h-[255vh] 2xl:min-h-[278vh] min-h-[275vh] bg-[#F6F5F1] overflow-hidden hidden lg:block"
