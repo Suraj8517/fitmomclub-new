@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import pritika from "../../assets/aboutus/pritika-team.png"
-import sarvesh from "../../assets/aboutus/sarvesh.png"
-import vignesh from "../../assets/aboutus/vignesh.png"
+import pritika from "../../assets/aboutus/pritika-team.webp"
+import sarvesh from "../../assets/aboutus/sarvesh.webp"
+import vignesh from "../../assets/aboutus/vignesh.webp"
 
 const cards = [
   {
