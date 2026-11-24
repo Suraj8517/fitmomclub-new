@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import logo from "../../assets/home/fitmom.png";
-import phoneFrame from "../../assets/home/mockup.png";
-import mockupImage from "../../assets/home/mockup.png";
+import logo from "../../assets/home/fitmom-small.webp";
+import phoneFrame from "../../assets/home/mockup.webp";
+import mockupImage from "../../assets/home/mockup.webp";
 import { Camera, Search, Plus } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);

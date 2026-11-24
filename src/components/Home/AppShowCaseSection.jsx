@@ -1,8 +1,8 @@
 import { Fragment, useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import screen1 from "../../assets/home/mobile/img1.png";
-import screen2 from "../../assets/home/mobile/img2.png";
+import screen1 from "../../assets/home/mobile/img1.webp";
+import screen2 from "../../assets/home/mobile/img2.webp";
 import useDeviceType from "../../components/Helper/DeviceType";
 import AppleIcon  from "../../components/Helper/AppleIcon";
 import  PlayStoreIcon  from "../../components/Helper/PlayStoreIcon";
